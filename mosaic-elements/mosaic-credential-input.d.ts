@@ -29,6 +29,21 @@ export class MosaicCredentialInput extends HTMLElement {
   /** Current visual mask state */
   masked: boolean;
 
+  /** Current binding mode: 'portable' (default) or 'os-bound' */
+  bindingMode: 'portable' | 'os-bound';
+
+  /** Set the binding mode explicitly */
+  setMode(mode: 'portable' | 'os-bound'): void;
+
+  /** Toggle between portable and os-bound modes */
+  toggleMode(): void;
+
+  /** Add a directional arrow key (ArrowUp, ArrowDown, ArrowLeft, ArrowRight) */
+  addArrow(key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight' | string): void;
+
+  /** Add a function key (F1 - F12) */
+  addFunctionKey(fKey: string): void;
+
   /** Add a single character or Unicode code point */
   addChar(char: string | number): void;
 

@@ -2,7 +2,8 @@
 
 > **Next-generation structured authentication secrets combining arbitrary Unicode scalars, raw binary BLOBs, and keystroke secrets into brute-force-proof credentials.**
 
-[![License](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
+[![CI](https://github.com/Ecch1ch1/Mosaic-Credentials/actions/workflows/ci.yml/badge.svg)](https://github.com/Ecch1ch1/Mosaic-Credentials/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-MPL_2.0-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange?logo=rust)](mosaic-core/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](mosaic-python/)
 [![WebAssembly](https://img.shields.io/badge/WASM-Compatible-purple?logo=webassembly)](mosaic-wasm/)
@@ -155,8 +156,8 @@ This implementation strictly adheres to the official specification:
 
 ## 📄 License
 
-Dual-licensed under either:
-* **MIT License** ([LICENSE-MIT](LICENSE-MIT))
-* **Apache License, Version 2.0** ([LICENSE-APACHE](LICENSE-APACHE))
+Licensed under the **Mozilla Public License 2.0 (MPL-2.0)** ([LICENSE](LICENSE)).
 
-at your option.
+* **Commercial & SaaS Use**: You are free to integrate and use this library in commercial applications, paid websites, and SaaS products.
+* **Copyleft on Modifications**: Any modifications, copies, or derivative distributions of this library's source code must remain free and open source under MPL-2.0.
+* **No Closed-Source Resale**: You may not sell, re-brand, or close-source this library as a standalone paid commercial product.

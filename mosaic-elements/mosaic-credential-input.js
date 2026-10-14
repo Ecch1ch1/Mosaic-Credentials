@@ -182,6 +182,24 @@
         border-color: var(--accent-color);
       }
 
+      .token-arrow {
+        background: rgba(14, 165, 233, 0.2);
+        color: #7dd3fc;
+        border: 1px solid rgba(14, 165, 233, 0.4);
+      }
+
+      .token-os {
+        background: rgba(168, 85, 247, 0.2);
+        color: #d8b4fe;
+        border: 1px solid rgba(168, 85, 247, 0.4);
+      }
+
+      .tool-btn-os.active {
+        background: #9333ea;
+        color: white;
+        border-color: #a855f7;
+      }
+
       .tool-btn-danger:hover {
         background: rgba(239, 68, 68, 0.2);
         color: #fca5a5;
@@ -216,8 +234,14 @@
           <button type="button" class="tool-btn" id="bsBtn" title="Insert Secret Backspace token U+0008">
             ⌫ +Backspace
           </button>
+          <button type="button" class="tool-btn" id="arrowsBtn" title="Insert Directional Arrow Token">
+            🎮 ⬆⬇⬅➡
+          </button>
           <button type="button" class="tool-btn" id="attachBtn" title="Attach file or binary BLOB">
             📎 +File
+          </button>
+          <button type="button" class="tool-btn" id="modeBtn" title="Toggle between Standard Portable Mode and Device-Bound Mode">
+            🌐 Mode: Portable
           </button>
           <button type="button" class="tool-btn" id="viewToggleBtn" title="Toggle Secret Visibility">
             👁️ Peek
@@ -245,8 +269,9 @@
       this.shadowRoot.appendChild(template.content.cloneNode(true));
 
       // Elements state
-      this.elements = []; // Array of { type: 'CHAR', value: number } | { type: 'BLOB', value: Uint8Array, name: string }
+      this.elements = []; // Array of { type: 'CHAR', value: number, meta?: string } | { type: 'BLOB', value: Uint8Array, name: string }
       this.masked = true; // Visual mask
+      this.bindingMode = 'portable'; // 'portable' (default) or 'os-bound'
 
       // Cache DOM
       this.$container = this.shadowRoot.getElementById('container');
@@ -254,7 +279,9 @@
       this.$tokensList = this.shadowRoot.getElementById('tokensList');
       this.$textEntry = this.shadowRoot.getElementById('textEntry');
       this.$bsBtn = this.shadowRoot.getElementById('bsBtn');
+      this.$arrowsBtn = this.shadowRoot.getElementById('arrowsBtn');
       this.$attachBtn = this.shadowRoot.getElementById('attachBtn');
+      this.$modeBtn = this.shadowRoot.getElementById('modeBtn');
       this.$fileInput = this.shadowRoot.getElementById('fileInput');
       this.$viewToggleBtn = this.shadowRoot.getElementById('viewToggleBtn');
       this.$clearBtn = this.shadowRoot.getElementById('clearBtn');
@@ -270,12 +297,14 @@
     }
 
     static get observedAttributes() {
-      return ['placeholder', 'name', 'required', 'theme'];
+      return ['placeholder', 'name', 'required', 'theme', 'mode'];
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
       if (name === 'placeholder' && this.$textEntry) {
         this.$textEntry.placeholder = newValue || '';
+      } else if (name === 'mode' && newValue) {
+        this.setMode(newValue);
       }
     }
 
@@ -284,12 +313,17 @@
       if (this.hasAttribute('placeholder')) {
         this.$textEntry.placeholder = this.getAttribute('placeholder');
       }
+      if (this.hasAttribute('mode')) {
+        this.setMode(this.getAttribute('mode'));
+      }
 
       // Event listeners
       this.$inputRow.addEventListener('click', () => this.$textEntry.focus());
       this.$textEntry.addEventListener('keydown', this._onKeyDown);
       this.$textEntry.addEventListener('input', this._onInput);
       this.$bsBtn.addEventListener('click', () => this.addBackspace());
+      this.$arrowsBtn.addEventListener('click', () => this.promptArrowPicker());
+      this.$modeBtn.addEventListener('click', () => this.toggleMode());
       this.$attachBtn.addEventListener('click', () => this.$fileInput.click());
       this.$fileInput.addEventListener('change', this._onFileChange);
       this.$viewToggleBtn.addEventListener('click', () => this.toggleMask());
@@ -301,6 +335,28 @@
       this.$container.addEventListener('drop', this._onDrop);
 
       this._updateFormValue();
+    }
+
+    setMode(mode) {
+      this.bindingMode = mode === 'os-bound' ? 'os-bound' : 'portable';
+      if (this.bindingMode === 'os-bound') {
+        this.$modeBtn.textContent = '🖥️ Mode: OS-Bound';
+        this.$modeBtn.classList.add('tool-btn-os', 'active');
+      } else {
+        this.$modeBtn.textContent = '🌐 Mode: Portable';
+        this.$modeBtn.classList.remove('tool-btn-os', 'active');
+      }
+    }
+
+    toggleMode() {
+      const nextMode = this.bindingMode === 'portable' ? 'os-bound' : 'portable';
+      this.setMode(nextMode);
+    }
+
+    promptArrowPicker() {
+      // Quickly cycle through directional arrows or insert Arrow Up
+      this.addArrow('ArrowUp');
+      this.$textEntry.focus();
     }
 
     // Public API
@@ -322,6 +378,40 @@
       this._renderTokens();
       this._updateFormValue();
       this.$textEntry.focus();
+    }
+
+    addArrow(key) {
+      if (this.bindingMode === 'os-bound') {
+        const platform = navigator.platform || (navigator.userAgentData && navigator.userAgentData.platform) || 'OS';
+        const signature = `OS:${platform}:${key}`;
+        this.addBlob(new TextEncoder().encode(signature), signature);
+      } else {
+        // Portable mode: Canonical PUA
+        const puaMap = {
+          'ArrowUp': 0xE010,
+          'ArrowDown': 0xE011,
+          'ArrowLeft': 0xE012,
+          'ArrowRight': 0xE013,
+        };
+        const scalar = puaMap[key] || 0xE010;
+        this.elements.push({ type: 'CHAR', value: scalar, meta: key });
+        this._renderTokens();
+        this._updateFormValue();
+      }
+    }
+
+    addFunctionKey(fKey) {
+      if (this.bindingMode === 'os-bound') {
+        const platform = navigator.platform || (navigator.userAgentData && navigator.userAgentData.platform) || 'OS';
+        const signature = `OS:${platform}:${fKey}`;
+        this.addBlob(new TextEncoder().encode(signature), signature);
+      } else {
+        const num = parseInt(fKey.replace('F', ''), 10) || 1;
+        const scalar = 0xE020 + num; // F1 -> 0xE021, F12 -> 0xE02C
+        this.elements.push({ type: 'CHAR', value: scalar, meta: fKey });
+        this._renderTokens();
+        this._updateFormValue();
+      }
     }
 
     addBlob(bytes, name = 'binary.bin') {
@@ -439,6 +529,14 @@
           // Secret Backspace Mode: Insert CHAR(0x0008)
           this.addBackspace();
         }
+      } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        this._flushTextEntry();
+        this.addArrow(e.key);
+      } else if (/^F([1-9]|1[0-2])$/.test(e.key)) {
+        e.preventDefault();
+        this._flushTextEntry();
+        this.addFunctionKey(e.key);
       } else if (e.key === 'Enter') {
         // If Enter pressed with text in buffer, flush it
         this._flushTextEntry();
@@ -515,15 +613,31 @@
           if (el.value === 0x0008) {
             badge.classList.add('token-bs');
             badge.innerHTML = `⌫ BS <span class="token-del" data-index="${index}">✕</span>`;
+          } else if (el.value >= 0xE010 && el.value <= 0xE013) {
+            badge.classList.add('token-arrow');
+            const arrowIcons = { 0xE010: '⬆ UP', 0xE011: '⬇ DOWN', 0xE012: '⬅ LEFT', 0xE013: '➡ RIGHT' };
+            const icon = this.masked ? '▲' : (arrowIcons[el.value] || '⬆');
+            badge.innerHTML = `${icon} <span class="token-del" data-index="${index}">✕</span>`;
+          } else if (el.value >= 0xE021 && el.value <= 0xE02C) {
+            badge.classList.add('token-arrow');
+            const fLabel = `F${el.value - 0xE020}`;
+            const icon = this.masked ? '⚙' : fLabel;
+            badge.innerHTML = `${icon} <span class="token-del" data-index="${index}">✕</span>`;
           } else {
             badge.classList.add('token-char');
             const displayChar = this.masked ? '●' : String.fromCodePoint(el.value);
             badge.innerHTML = `${displayChar} <span class="token-del" data-index="${index}">✕</span>`;
           }
         } else if (el.type === 'BLOB') {
-          badge.classList.add('token-blob');
-          const sizeKb = (el.value.length / 1024).toFixed(1);
-          badge.innerHTML = `📄 ${el.name} (${sizeKb}K) <span class="token-del" data-index="${index}">✕</span>`;
+          if (el.name && el.name.startsWith('OS:')) {
+            badge.classList.add('token-os');
+            const label = this.masked ? '🖥️ OS-Key' : `🖥️ ${el.name}`;
+            badge.innerHTML = `${label} <span class="token-del" data-index="${index}">✕</span>`;
+          } else {
+            badge.classList.add('token-blob');
+            const sizeKb = (el.value.length / 1024).toFixed(1);
+            badge.innerHTML = `📄 ${el.name} (${sizeKb}K) <span class="token-del" data-index="${index}">✕</span>`;
+          }
         }
 
         badge.querySelector('.token-del').addEventListener('click', (ev) => {

@@ -99,4 +99,4 @@ input.clear();
 
 ## 📄 License
 
-Dual-licensed under [MIT](../LICENSE-MIT) or [Apache-2.0](../LICENSE-APACHE).
+Licensed under the [Mozilla Public License 2.0 (MPL-2.0)](../LICENSE).

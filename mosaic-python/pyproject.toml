@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Python bindings and reference implementation for Mosaic Credential v1"
 readme = "README.md"
 authors = [{ name = "Mosaic Credential Team" }]
-license = { text = "MIT OR Apache-2.0" }
+license = { text = "MPL-2.0" }
 requires-python = ">=3.9"
 dependencies = [
     "argon2-cffi>=21.0.0",
