@@ -169,6 +169,17 @@ This implementation strictly adheres to the official specification:
 
 ---
 
+## 🎬 Conception & Authorship
+
+> *"Like directing a movie — the vision, creative architecture, and core ideas are human; the code was pair-programmed with AI."*
+
+* **Conceived, Architected & Directed by**: [Ecch1ch1](https://github.com/Ecch1ch1)
+  * Originated the core paradigm: multi-modal secrets, backspace-as-secret preservation, portable vs. OS-bound hardware modes, and developer drop-in ergonomics.
+* **Engineered via AI Pair-Programming**:
+  * Implementation pair-programmed with Google DeepMind Antigravity, rigorously audited against RFC-style test vectors, memory zeroization, and cross-platform verification.
+
+---
+
 ## 📄 License
 
 Licensed under the **Mozilla Public License 2.0 (MPL-2.0)** ([LICENSE](LICENSE)).
