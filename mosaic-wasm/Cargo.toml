@@ -1,0 +1,23 @@
+[package]
+name = "mosaic-wasm"
+description = "WebAssembly bindings for Mosaic Credential"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mosaic-core = { workspace = true }
+mosaic-auth = { workspace = true }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde-wasm-bindgen = "0.6"
+hex = { workspace = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

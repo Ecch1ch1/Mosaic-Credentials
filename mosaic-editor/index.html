@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Reference Web Editor and Inspector for Mosaic Credential — structured authentication secrets composed of Unicode characters and binary components with exact Backspace preservation.">
+  <meta name="keywords" content="Mosaic Credential, authentication, cryptography, Argon2id, SHA-256 prehash, canonical serialization">
+  <title>Mosaic Credential — Reference Web Editor &amp; Inspector</title>
+  <link rel="stylesheet" href="styles/index.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">MC</div>
+        <div>
+          <span class="brand-title">Mosaic Credential</span>
+          <span class="brand-badge">v1 canonical</span>
+        </div>
+      </div>
+      <nav class="nav-links" aria-label="Main Navigation">
+        <button class="tab-btn active" id="tab-btn-editor" data-tab="editor">
+          <span>⚡</span> Editor &amp; Inspector
+        </button>
+        <button class="tab-btn" id="tab-btn-enroll" data-tab="enroll">
+          <span>🔐</span> Enroll &amp; Record
+        </button>
+        <button class="tab-btn" id="tab-btn-verify" data-tab="verify">
+          <span>🛡️</span> Verify
+        </button>
+        <button class="tab-btn" id="tab-btn-vectors" data-tab="vectors">
+          <span>🧪</span> Test Vectors (§16.4)
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-content">
+    
+    <!-- Tab 1: Editor & Inspector -->
+    <section class="tab-pane active" id="tab-editor" aria-labelledby="tab-btn-editor">
+      <div class="editor-grid">
+        
+        <!-- Left Column: Input, Structural View, Preview -->
+        <div class="col-left">
+          
+          <!-- Input Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2 class="card-title">
+                <span class="card-title-icon">⌨</span> Credential Composition
+              </h2>
+              <div class="mode-toggle-group" title="Controls how Backspace key behaves (§5.1 vs §5.3)">
+                <button class="mode-btn active" id="mode-cred-btn" type="button">
+                  Credential Mode (BS=U+0008)
+                </button>
+                <button class="mode-btn" id="mode-edit-btn" type="button">
+                  Edit Mode
+                </button>
+              </div>
+            </div>
+
+            <div class="spec-alert">
+              <strong>§5.1 Normative Behavior:</strong> In credential-entry mode, <code>Backspace</code> inserts <code>CHAR(U+0008)</code> as a legitimate secret element rather than automatically discarding preceding characters.
+            </div>
+
+            <div class="input-field-wrapper">
+              <input 
+                type="text" 
+                id="cred-input" 
+                class="credential-input" 
+                placeholder="Type characters here... Backspace will append <BS> (U+0008)" 
+                autocomplete="off" 
+                spellcheck="false"
+                aria-label="Credential Secret Input"
+              >
+            </div>
+
+            <!-- File Dropzone -->
+            <div class="dropzone" id="dropzone" aria-label="Drag and drop binary components">
+              <div class="dropzone-icon">📁</div>
+              <div class="dropzone-text">Drag &amp; drop files here, or click to browse</div>
+              <div class="dropzone-subtext">Binary files (images, audio, documents, arbitrary bytes) are inserted as opaque BLOB elements (§4.4)</div>
+              <input type="file" id="file-picker" style="display: none;" multiple>
+            </div>
+
+            <!-- Editor Action Bar (§5.3) -->
+            <div class="action-bar">
+              <button class="btn btn-purple" id="btn-add-bs" type="button">
+                <span>⌫</span> Add Backspace (U+0008)
+              </button>
+              <button class="btn btn-secondary" id="btn-remove-last" type="button" title="Editor operation: removes last element without adding to credential (§5.3)">
+                <span>↩</span> Remove Last Element
+              </button>
+              <button class="btn btn-danger" id="btn-clear" type="button" title="Clear entire credential">
+                <span>🗑</span> Clear All
+              </button>
+            </div>
+          </div>
+
+          <!-- Structural View Card (§5.2) -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <span class="card-title-icon">🧱</span> Structural View (Authenticated Sequence)
+              </h3>
+              <span style="font-size: 0.75rem; color: var(--text-dim);">Click × on pill to delete element</span>
+            </div>
+            <div class="element-stream" id="element-stream" aria-label="Ordered credential elements stream">
+              <!-- Element pills populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Preview Render Card (§5.2) -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <span class="card-title-icon">👁</span> Visual Display Preview
+              </h3>
+              <span class="preview-badge">Display interpretation only — not the authenticated secret (§5.2)</span>
+            </div>
+            <div class="preview-box" id="preview-box">
+              (empty)
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Hex Dump, Prehash, Policy Metrics -->
+        <div class="col-right">
+
+          <!-- Cryptographic Prehash Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <span class="card-title-icon">🔑</span> Domain-Separated Prehash (D)
+              </h3>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.5rem;">
+              <code>D = SHA-256("MOSAIC-CREDENTIAL/PREHASH/V1\0" || S)</code> (§8.2)
+            </p>
+            <div class="hash-display">
+              <span id="prehash-val">fa3c37767a7d9d7880ce0b04f87ffd0c3fd37bee835b89814d6c502063b7224e</span>
+              <button class="copy-btn" id="copy-prehash-btn" title="Copy prehash digest">📋</button>
+            </div>
+          </div>
+
+          <!-- Canonical Binary Format Inspector (§6) -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <span class="card-title-icon">01</span> Canonical MC v1 Encoding (S)
+              </h3>
+            </div>
+            <div class="hex-viewer" id="hex-viewer" aria-label="Hex dump of canonical binary encoding">
+              <!-- Hex lines populated dynamically -->
+            </div>
+
+            <!-- Size Policy Metrics (§7) -->
+            <div class="metric-row">
+              <div class="metric-card">
+                <div class="metric-label">Elements</div>
+                <div class="metric-val" id="metric-elements">0</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Total Bytes</div>
+                <div class="metric-val" id="metric-bytes">9</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Encoded Bits</div>
+                <div class="metric-val" id="metric-bits">72 bits</div>
+              </div>
+            </div>
+            <div class="metric-meter" title="Bit limit usage against max_encoded_bits policy">
+              <div class="metric-progress" id="meter-bits"></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Tab 2: Enrollment & Records (§9, §10.1) -->
+    <section class="tab-pane" id="tab-enroll" aria-labelledby="tab-btn-enroll">
+      <div class="glass-card" style="max-width: 860px; margin: 0 auto;">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-title-icon">🔐</span> Enrollment Pipeline (§10.1)
+          </h2>
+          <button class="btn btn-primary" id="btn-enroll" type="button">
+            Derive Argon2id Verifier Record
+          </button>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Derives the Argon2id verifier with a fresh CSPRNG salt over prehash <code>D</code>. Persists only the versioned JSON record. Never stores original secret text, files, or prehash <code>D</code> (§8.2, §9).
+        </p>
+
+        <div class="input-field-wrapper">
+          <textarea 
+            id="record-json-output" 
+            class="credential-input" 
+            rows="10" 
+            placeholder="Click 'Derive Argon2id Verifier Record' to produce the versioned VerifierRecord JSON schema (§9)..." 
+            readonly
+            aria-label="Verifier Record JSON Output"
+          ></textarea>
+        </div>
+
+        <div class="action-bar" style="margin-top: 0.75rem;">
+          <button class="btn btn-secondary" id="copy-record-btn" type="button">
+            📋 Copy Record JSON
+          </button>
+          <button class="btn btn-secondary" id="download-record-btn" type="button">
+            💾 Download .json
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 3: Verification (§10.2) -->
+    <section class="tab-pane" id="tab-verify" aria-labelledby="tab-btn-verify">
+      <div class="glass-card" style="max-width: 860px; margin: 0 auto;">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-title-icon">🛡️</span> Verification Pipeline (§10.2)
+          </h2>
+          <button class="btn btn-primary" id="btn-verify" type="button">
+            Verify Candidate Against Stored Record
+          </button>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Rebuilds candidate credential from current editor elements, recomputes <code>D</code>, validates resource limits on record parameters, and calls Argon2id verifier. Returns a generic result externally (§10.2 step 6).
+        </p>
+
+        <div class="input-field-wrapper">
+          <textarea 
+            id="verify-record-input" 
+            class="credential-input" 
+            rows="8" 
+            placeholder="Paste stored VerifierRecord JSON here..." 
+            aria-label="Stored Verifier Record Input"
+          ></textarea>
+        </div>
+
+        <div id="verify-status-box" style="display: none; margin-top: 1rem;">
+          <!-- Status injected here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 4: Published Test Vectors (§16.4) -->
+    <section class="tab-pane" id="tab-vectors" aria-labelledby="tab-btn-vectors">
+      <div class="glass-card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-title-icon">🧪</span> Published Test Vectors (§16.4)
+          </h2>
+          <button class="btn btn-primary" id="btn-run-all-vectors" type="button">
+            ▶ Run All Test Vectors Verification
+          </button>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Published canonical test vectors matching Rust (<code>mosaic-core</code>, <code>mosaic-auth</code>, <code>mosaic-cli</code>), Python (<code>mosaic-credential</code>), and WebAssembly.
+        </p>
+
+        <div style="overflow-x: auto;">
+          <table class="vector-table" aria-label="Published Test Vectors Table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Vector ID</th>
+                <th>Description</th>
+                <th>Prehash Prefix</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="vectors-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div>Mosaic Credential Reference Implementation • Specification Version 0.1 • Rust Core • Python • WebAssembly • Vanilla Web Editor</div>
+  </footer>
+
+  <script type="module" src="js/editor.js"></script>
+</body>
+</html>

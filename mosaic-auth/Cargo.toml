@@ -1,0 +1,19 @@
+[package]
+name = "mosaic-auth"
+description = "Enrollment, verification, record validation, and upgrades for Mosaic Credential"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+mosaic-core = { workspace = true }
+argon2 = { workspace = true }
+password-hash = { version = "0.5", features = ["rand_core"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+serde = { workspace = true }
+
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+

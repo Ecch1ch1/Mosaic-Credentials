@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mosaic Credential — Full-Stack Auth &amp; Database Test Site</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">MC</div>
+        <div>
+          <span class="brand-title">Mosaic Credential</span>
+          <span class="brand-badge">SQLite Live Auth</span>
+        </div>
+      </div>
+      <nav class="nav-tabs" aria-label="Main Navigation">
+        <button class="tab-btn active" data-tab="register">
+          <span>🔐</span> Register
+        </button>
+        <button class="tab-btn" data-tab="login">
+          <span>🛡️</span> Login
+        </button>
+        <button class="tab-btn" data-tab="database">
+          <span>🗄️</span> SQLite Inspector
+        </button>
+        <button class="tab-btn" data-tab="presets">
+          <span>⚡</span> Quick Presets
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- TAB 1: REGISTER -->
+    <section class="tab-pane active" id="tab-register">
+      <div class="glass-card" style="max-width: 850px; margin: 0 auto;">
+        <h2 class="card-title"><span>🔐</span> Register User Account (§10.1)</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Creates a structured credential, derives an Argon2id verifier, and stores a compact <strong>VerifierRecord</strong> into the SQLite database.
+        </p>
+
+        <!-- Username -->
+        <div class="form-group">
+          <label class="form-label" for="reg-username">Username</label>
+          <input type="text" id="reg-username" class="input-text" placeholder="e.g. alice, bob, alex" autocomplete="off">
+        </div>
+
+        <!-- Credential Composer -->
+        <div class="form-group">
+          <label class="form-label">Mosaic Credential Composition</label>
+
+          <div class="mode-toggle">
+            <button type="button" class="mode-toggle-btn active" id="reg-mode-cred">Credential Mode (BS=Secret)</button>
+            <button type="button" class="mode-toggle-btn" id="reg-mode-edit">Edit Mode</button>
+          </div>
+
+          <input type="text" id="reg-input" class="input-text" placeholder="Type secret characters... Press Backspace to append <BS> secret element" autocomplete="off">
+
+          <div class="btn-group">
+            <button type="button" class="btn btn-purple" id="reg-add-bs"><span>⌫</span> Add Backspace (U+0008)</button>
+            <button type="button" class="btn btn-secondary" id="reg-remove-last"><span>↩</span> Remove Last</button>
+            <button type="button" class="btn btn-danger" id="reg-clear"><span>🗑</span> Clear</button>
+          </div>
+
+          <!-- Dropzone -->
+          <div class="dropzone" id="reg-dropzone">
+            <div class="dropzone-text">📁 Drop file (image/audio/binary) here or click to browse</div>
+            <input type="file" id="reg-file-picker" style="display: none;" multiple>
+          </div>
+
+          <!-- Structural View -->
+          <div style="margin-top: 1rem;">
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Structural Stream (Real Authenticated Secret §5.2)</div>
+            <div class="element-stream" id="reg-stream"></div>
+          </div>
+
+          <!-- Display Preview -->
+          <div style="margin-top: 0.75rem;">
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Display Preview (Visual Simulation Only §5.2)</div>
+            <div class="preview-box" id="reg-preview">(empty)</div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="button" class="btn btn-primary" id="btn-submit-register" style="width: 100%; justify-content: center; padding: 0.75rem; font-size: 0.95rem; margin-top: 0.5rem;">
+          Register &amp; Store Verifier in SQLite
+        </button>
+
+        <div id="reg-status" style="display: none;"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: LOGIN -->
+    <section class="tab-pane" id="tab-login">
+      <div class="glass-card" style="max-width: 850px; margin: 0 auto;">
+        <h2 class="card-title"><span>🛡️</span> Authenticate / Login (§10.2)</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Reconstructs candidate credential, calculates prehash, and verifies using Argon2id against stored record in SQLite.
+        </p>
+
+        <!-- Username -->
+        <div class="form-group">
+          <label class="form-label" for="login-username">Username</label>
+          <input type="text" id="login-username" class="input-text" placeholder="Enter your registered username" autocomplete="off">
+        </div>
+
+        <!-- Credential Composer -->
+        <div class="form-group">
+          <label class="form-label">Candidate Credential</label>
+
+          <div class="mode-toggle">
+            <button type="button" class="mode-toggle-btn active" id="login-mode-cred">Credential Mode (BS=Secret)</button>
+            <button type="button" class="mode-toggle-btn" id="login-mode-edit">Edit Mode</button>
+          </div>
+
+          <input type="text" id="login-input" class="input-text" placeholder="Type your password components..." autocomplete="off">
+
+          <div class="btn-group">
+            <button type="button" class="btn btn-purple" id="login-add-bs"><span>⌫</span> Add Backspace (U+0008)</button>
+            <button type="button" class="btn btn-secondary" id="login-remove-last"><span>↩</span> Remove Last</button>
+            <button type="button" class="btn btn-danger" id="login-clear"><span>🗑</span> Clear</button>
+          </div>
+
+          <div class="dropzone" id="login-dropzone">
+            <div class="dropzone-text">📁 Drop file (image/audio/binary) here or click to browse</div>
+            <input type="file" id="login-file-picker" style="display: none;" multiple>
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Structural Stream</div>
+            <div class="element-stream" id="login-stream"></div>
+          </div>
+
+          <div style="margin-top: 0.75rem;">
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Display Preview</div>
+            <div class="preview-box" id="login-preview">(empty)</div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="button" class="btn btn-primary" id="btn-submit-login" style="width: 100%; justify-content: center; padding: 0.75rem; font-size: 0.95rem; margin-top: 0.5rem;">
+          Authenticate Against SQLite
+        </button>
+
+        <div id="login-status" style="display: none;"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: DATABASE INSPECTOR -->
+    <section class="tab-pane" id="tab-database">
+      <div class="glass-card">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <h2 class="card-title" style="margin-bottom: 0.2rem;"><span>🗄️</span> Live SQLite Database Inspector</h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+              File: <code id="db-file-path" style="color: var(--accent-cyan);">auth.db</code> • <span id="db-user-count">0 users</span>
+            </p>
+          </div>
+          <button type="button" class="btn btn-danger" id="btn-reset-db">
+            <span>🗑</span> Clear All Users
+          </button>
+        </div>
+
+        <div style="background: rgba(0, 240, 255, 0.05); border-left: 3px solid var(--accent-cyan); padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+          <strong>Security &amp; Storage Proof:</strong> Notice the <strong>Stored Size</strong> column. Regardless of whether a user registered with text, multiple backspaces, or a 50 MB binary image, their entire stored row in SQLite is <strong>~160 bytes</strong>!
+        </div>
+
+        <div class="db-table-wrapper">
+          <table class="db-table" aria-label="SQLite Users Table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Stored Size</th>
+                <th>VerifierRecord JSON (§9)</th>
+                <th>Created At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="db-users-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: PRESETS -->
+    <section class="tab-pane" id="tab-presets">
+      <div class="glass-card">
+        <h2 class="card-title"><span>⚡</span> 1-Click Interactive Test Presets</h2>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Click any persona below to auto-load an interesting credential into the registration form:
+        </p>
+
+        <div class="preset-grid">
+          <div class="preset-card" id="preset-alice">
+            <div class="preset-title"><span>👩</span> Alice (Text + Backspaces)</div>
+            <div class="preset-desc">
+              Secret: <code>Pass&lt;BS&gt;&lt;BS&gt;&lt;BS&gt;word</code>.<br>
+              Display preview looks like <code>Pword</code>, but authentication verifies the backspace history!
+            </div>
+          </div>
+
+          <div class="preset-card" id="preset-bob">
+            <div class="preset-title"><span>👨</span> Bob (Text + Image BLOB)</div>
+            <div class="preset-desc">
+              Secret: <code>Bob</code> + <code>avatar.png (PNG image bytes)</code> + <code>99</code>.<br>
+              Proves exact binary file interleaving!
+            </div>
+          </div>
+
+          <div class="preset-card" id="preset-charlie">
+            <div class="preset-title"><span>🦀</span> Charlie (Multilingual &amp; Emojis)</div>
+            <div class="preset-desc">
+              Secret: <code>🦀</code> + <code>🔑</code> + <code>©</code> + <code>\0 (NUL)</code>.<br>
+              Preserves exact Unicode scalar values without normalization or truncation.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

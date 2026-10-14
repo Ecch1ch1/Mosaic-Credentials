@@ -1,0 +1,162 @@
+[
+  {
+    "id": "mc-v1-001-empty",
+    "description": "Empty credential (zero elements)",
+    "elements_desc": [],
+    "canonical_hex": "4d43524400010001ff",
+    "prehash_hex": "fa3c37767a7d9d7880ce0b04f87ffd0c3fd37bee835b89814d6c502063b7224e",
+    "salt_b64": "dGVzdHNhbHR0ZXN0c2FsdA",
+    "argon2_params": {
+      "memory_cost_kib": 256,
+      "iterations": 1,
+      "parallelism": 1,
+      "salt_length_bytes": 16,
+      "output_length_bytes": 32
+    },
+    "expected_verifier": "$argon2id$v=19$m=256,t=1,p=1$dGVzdHNhbHR0ZXN0c2FsdA$GTUU0fhDSXJLtYMRisWfefTnTyqcJ/9FXQNijsW359A"
+  },
+  {
+    "id": "mc-v1-002-single-char",
+    "description": "Single ASCII character 'A'",
+    "elements_desc": [
+      "CHAR('A')"
+    ],
+    "canonical_hex": "4d435244000100010100000041ff",
+    "prehash_hex": "4c5eef09e109b12aea033df9fab17fccf2cccd4a03752bc0edc4f606f3a4e0ab",
+    "salt_b64": "dGVzdHNhbHR0ZXN0c2FsdA",
+    "argon2_params": {
+      "memory_cost_kib": 256,
+      "iterations": 1,
+      "parallelism": 1,
+      "salt_length_bytes": 16,
+      "output_length_bytes": 32
+    },
+    "expected_verifier": "$argon2id$v=19$m=256,t=1,p=1$dGVzdHNhbHR0ZXN0c2FsdA$9+tEiGeLKTGDHfhmiCksBkx+rv1DpNXyJ4xUDwrsNTI"
+  },
+  {
+    "id": "mc-v1-003-word-with-backspaces",
+    "description": "Text 'Pass' followed by 3 backspaces and 'word'",
+    "elements_desc": [
+      "CHAR('P')",
+      "CHAR('a')",
+      "CHAR('s')",
+      "CHAR('s')",
+      "CHAR(U+0008)",
+      "CHAR(U+0008)",
+      "CHAR(U+0008)",
+      "CHAR('w')",
+      "CHAR('o')",
+      "CHAR('r')",
+      "CHAR('d')"
+    ],
+    "canonical_hex": "4d4352440001000101000000500100000061010000007301000000730100000008010000000801000000080100000077010000006f01000000720100000064ff",
+    "prehash_hex": "4f555eba1553e330736297e6c02a76bf44476c8f84b8ec49bc47ff63ba6b3ed8",
+    "salt_b64": "dGVzdHNhbHR0ZXN0c2FsdA",
+    "argon2_params": {
+      "memory_cost_kib": 256,
+      "iterations": 1,
+      "parallelism": 1,
+      "salt_length_bytes": 16,
+      "output_length_bytes": 32
+    },
+    "expected_verifier": "$argon2id$v=19$m=256,t=1,p=1$dGVzdHNhbHR0ZXN0c2FsdA$EJzmWtGayAHXGb23g5171c9JgymaQrEeX9xZk12CvzY"
+  },
+  {
+    "id": "mc-v1-004-multilingual-emoji",
+    "description": "Unicode scalars with emoji, symbols, and NUL (🦀, 🔑, ©, U+0000)",
+    "elements_desc": [
+      "CHAR('🦀' U+1F980)",
+      "CHAR('🔑' U+1F511)",
+      "CHAR('©' U+00A9)",
+      "CHAR(U+0000)"
+    ],
+    "canonical_hex": "4d43524400010001010001f980010001f51101000000a90100000000ff",
+    "prehash_hex": "444ad7661991d41dd34e8d6b6a1e085b4afa44b178b2bd1dae9b40f5f4b2a452",
+    "salt_b64": "dGVzdHNhbHR0ZXN0c2FsdA",
+    "argon2_params": {
+      "memory_cost_kib": 256,
+      "iterations": 1,
+      "parallelism": 1,
+      "salt_length_bytes": 16,
+      "output_length_bytes": 32
+    },
+    "expected_verifier": "$argon2id$v=19$m=256,t=1,p=1$dGVzdHNhbHR0ZXN0c2FsdA$+DKNjxfjWTCBiLnCAihiHluH3B4RVxUlAs9SzEn+QXg"
+  },
+  {
+    "id": "mc-v1-005-single-blob",
+    "description": "Single binary component: b\"hello world\"",
+    "elements_desc": [
+      "BLOB(11 bytes: 68656c6c6f20776f726c64)"
+    ],
+    "canonical_hex": "4d4352440001000102000000000000000b68656c6c6f20776f726c64ff",
+    "prehash_hex": "b24a5aaf4fd6ba966ffb59c94b59c5ba974895a026af85c544038d2d673d0991",
+    "salt_b64": "dGVzdHNhbHR0ZXN0c2FsdA",
+    "argon2_params": {
+      "memory_cost_kib": 256,
+      "iterations": 1,
+      "parallelism": 1,
+      "salt_length_bytes": 16,
+      "output_length_bytes": 32
+    },
+    "expected_verifier": "$argon2id$v=19$m=256,t=1,p=1$dGVzdHNhbHR0ZXN0c2FsdA$LxRjGM51bK/RfUjSiwoAbSPpDPgABen/gEsPOoGzqtU"
+  },
+  {
+    "id": "mc-v1-006-empty-blob",
+    "description": "Zero-length BLOB component",
+    "elements_desc": [
+      "BLOB(0 bytes)"
+    ],
+    "canonical_hex": "4d43524400010001020000000000000000ff",
+    "prehash_hex": "9e9ff0c46013ce06becad7da3092070760f815616b79ab59bdaf84224d110360",
+    "salt_b64": "dGVzdHNhbHR0ZXN0c2FsdA",
+    "argon2_params": {
+      "memory_cost_kib": 256,
+      "iterations": 1,
+      "parallelism": 1,
+      "salt_length_bytes": 16,
+      "output_length_bytes": 32
+    },
+    "expected_verifier": "$argon2id$v=19$m=256,t=1,p=1$dGVzdHNhbHR0ZXN0c2FsdA$b1vbSlXDdrebwXURs560aFTf+msduxKYbVhkHIP2IRI"
+  },
+  {
+    "id": "mc-v1-007-mixed-text-and-blob",
+    "description": "Interleaved text and binary: 'P', 'a', BLOB(0x00,0x01,0x02), BS, 'x'",
+    "elements_desc": [
+      "CHAR('P')",
+      "CHAR('a')",
+      "BLOB(3 bytes: 000102)",
+      "CHAR(U+0008)",
+      "CHAR('x')"
+    ],
+    "canonical_hex": "4d435244000100010100000050010000006102000000000000000300010201000000080100000078ff",
+    "prehash_hex": "d47a1834b5e0792710bdc44a60e05b69ec143cd378c60791c1e2b68328bf6909",
+    "salt_b64": "dGVzdHNhbHR0ZXN0c2FsdA",
+    "argon2_params": {
+      "memory_cost_kib": 256,
+      "iterations": 1,
+      "parallelism": 1,
+      "salt_length_bytes": 16,
+      "output_length_bytes": 32
+    },
+    "expected_verifier": "$argon2id$v=19$m=256,t=1,p=1$dGVzdHNhbHR0ZXN0c2FsdA$xTVlcg6hRfop2H0JmATMZKBYP0JlZVOr3fYDf6K42kU"
+  },
+  {
+    "id": "mc-v1-008-multiple-blobs",
+    "description": "Two distinct BLOB components [0xde, 0xad] and [0xbe, 0xef]",
+    "elements_desc": [
+      "BLOB(2 bytes: dead)",
+      "BLOB(2 bytes: beef)"
+    ],
+    "canonical_hex": "4d43524400010001020000000000000002dead020000000000000002beefff",
+    "prehash_hex": "387bdeb018df1663f19a5a1a0951e61cf6fa803c149b8b05894b6cca258325d6",
+    "salt_b64": "dGVzdHNhbHR0ZXN0c2FsdA",
+    "argon2_params": {
+      "memory_cost_kib": 256,
+      "iterations": 1,
+      "parallelism": 1,
+      "salt_length_bytes": 16,
+      "output_length_bytes": 32
+    },
+    "expected_verifier": "$argon2id$v=19$m=256,t=1,p=1$dGVzdHNhbHR0ZXN0c2FsdA$pFvC+n/Djy2fY6GCgyf628gyqY1zll5/kg1Fh56HaFY"
+  }
+]
