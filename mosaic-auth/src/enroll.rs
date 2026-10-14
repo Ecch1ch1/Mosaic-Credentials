@@ -37,7 +37,7 @@ pub fn enroll(elements: &[Element], params: &AuthParams) -> Result<VerifierRecor
     params.validate().map_err(|e| Error::ResourcePolicyRejected(e))?;
 
     // Step 4: Stream canonical serialization into SHA-256 with domain prefix.
-    let digest = streaming_prehash(elements);
+    let mut digest = streaming_prehash(elements);
 
     // Step 5: Generate a fresh salt from OS CSPRNG.
     let salt = generate_salt();
@@ -55,8 +55,10 @@ pub fn enroll(elements: &[Element], params: &AuthParams) -> Result<VerifierRecor
 
     // Use the Argon2 password_hash API to produce a PHC string.
     use argon2::PasswordHasher;
-    let hash = argon2
-        .hash_password(&digest, &salt)
+    use zeroize::Zeroize;
+    let hash_result = argon2.hash_password(&digest, &salt);
+    digest.zeroize();
+    let hash = hash_result
         .map_err(|e| Error::InvalidVerifier(format!("Argon2 hashing failed: {e}")))?;
 
     let phc_string = hash.to_string();

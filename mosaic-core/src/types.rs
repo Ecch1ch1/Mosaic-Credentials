@@ -8,17 +8,19 @@
 //! ```
 
 use crate::error::{Error, Result};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A single element within a Mosaic Credential.
 ///
 /// The order of elements is part of the secret (§3.1). Elements MUST NOT be
 /// sorted or treated as an unordered set.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub enum Element {
     /// A single Unicode scalar value (§4.1).
     ///
     /// Accepted range: U+0000–U+D7FF and U+E000–U+10FFFF.
     /// This includes NUL, Backspace (U+0008), combining characters, etc.
+    #[zeroize(skip)]
     Char(char),
 
     /// An opaque byte sequence (§4.4), typically a file.

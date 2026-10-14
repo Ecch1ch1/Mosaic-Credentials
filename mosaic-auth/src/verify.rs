@@ -81,11 +81,13 @@ pub(crate) fn verify_inner(
     }
 
     // Step 4: Recompute D from the candidate.
-    let digest = streaming_prehash(elements);
+    let mut digest = streaming_prehash(elements);
 
     // Step 5: Call the vetted Argon2 verification API.
+    use zeroize::Zeroize;
     let argon2 = Argon2::default();
     let result = argon2.verify_password(&digest, &parsed_hash);
+    digest.zeroize();
 
     Ok(result.is_ok())
 }
