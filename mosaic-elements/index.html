@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>&lt;mosaic-credential-input&gt; — Drop-in Web Component Demo</title>
+  <style>
+    :root {
+      --bg: #0b0d13;
+      --card-bg: #131722;
+      --card-border: #1f2438;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #6366f1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #a5b4fc, #6366f1, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      background: #1a1f2e;
+      border: 1.5px solid var(--card-border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      width: 100%;
+    }
+
+    .btn-submit:hover {
+      opacity: 0.9;
+    }
+
+    .theme-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .theme-btn {
+      background: #1a1f2e;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .theme-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* Custom Themes Applied via CSS Variables */
+    .theme-cyberpunk mosaic-credential-input {
+      --mosaic-bg: #0f172a;
+      --mosaic-border: #06b6d4;
+      --mosaic-focus: #ec4899;
+      --mosaic-text: #f43f5e;
+      --mosaic-accent: #06b6d4;
+      --mosaic-radius: 4px;
+    }
+
+    .theme-minimal mosaic-credential-input {
+      --mosaic-bg: #ffffff;
+      --mosaic-border: #e2e8f0;
+      --mosaic-focus: #0f172a;
+      --mosaic-text: #0f172a;
+      --mosaic-muted: #64748b;
+      --mosaic-accent: #0f172a;
+      --mosaic-bs-bg: #ef4444;
+      --mosaic-blob-bg: #10b981;
+      --mosaic-radius: 6px;
+    }
+
+    pre {
+      background: #090b10;
+      border: 1px solid #1a1f2e;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #38bdf8;
+      overflow-x: auto;
+      max-height: 180px;
+    }
+
+    .badge-info {
+      font-size: 12px;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+  </style>
+
+  <!-- Include the Web Component -->
+  <script src="mosaic-credential-input.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>&lt;mosaic-credential-input&gt;</h1>
+      <p>Drop-in multi-modal authentication component for modern web apps</p>
+    </header>
+
+    <!-- Interactive Form -->
+    <div class="card" id="formCard">
+      <div class="card-title">
+        <span>Interactive Form Demo</span>
+        <span class="badge-info">Native Form Compatible</span>
+      </div>
+
+      <div class="theme-selector">
+        <span style="font-size: 12px; color: var(--text-muted); align-self: center;">Theme:</span>
+        <button class="theme-btn active" onclick="setTheme('default')">Dark Default</button>
+        <button class="theme-btn" onclick="setTheme('cyberpunk')">Neon Cyberpunk</button>
+        <button class="theme-btn" onclick="setTheme('minimal')">Light Minimalist</button>
+      </div>
+
+      <form id="demoForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" value="alice" required>
+        </div>
+
+        <div class="form-group">
+          <label for="credInput">Mosaic Credential</label>
+          <!-- THE DROP-IN WEB COMPONENT -->
+          <mosaic-credential-input 
+            id="credInput" 
+            name="credential" 
+            placeholder="Type secret, press Backspace, or drop files...">
+          </mosaic-credential-input>
+        </div>
+
+        <button type="submit" class="btn-submit">Submit Form (Check Output Below)</button>
+      </form>
+    </div>
+
+    <!-- Live Event & Form Inspector -->
+    <div class="card">
+      <div class="card-title">Live Output Inspector</div>
+      <label>Last Captured Form Payload (Base64 MC v1 Wire Format):</label>
+      <pre id="outputLog">Submit the form or type in the input above to see the canonical payload...</pre>
+    </div>
+
+    <!-- How to Use Snippet -->
+    <div class="card">
+      <div class="card-title">How to Use in Any Web Page</div>
+      <pre>&lt;!-- 1. Include the drop-in component --&gt;
+&lt;script src="mosaic-credential-input.js"&gt;&lt;/script&gt;
+
+&lt;!-- 2. Use it inside your form just like an &lt;input&gt; --&gt;
+&lt;form action="/login" method="POST"&gt;
+  &lt;input type="text" name="username" required /&gt;
+  &lt;mosaic-credential-input name="password" placeholder="Enter secret..."&gt;&lt;/mosaic-credential-input&gt;
+  &lt;button type="submit"&gt;Sign In&lt;/button&gt;
+&lt;/form&gt;
+
+&lt;!-- 3. Style it with pure CSS variables --&gt;
+&lt;style&gt;
+  mosaic-credential-input {
+    --mosaic-bg: #161822;
+    --mosaic-border: #2d3148;
+    --mosaic-accent: #6366f1;
+    --mosaic-radius: 8px;
+  }
+&lt;/style&gt;</pre>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('demoForm');
+    const credInput = document.getElementById('credInput');
+    const outputLog = document.getElementById('outputLog');
+    const formCard = document.getElementById('formCard');
+
+    // Listen for live changes
+    credInput.addEventListener('change', async (e) => {
+      if (e.detail.elementCount > 0) {
+        const prehash = await credInput.getPrehash();
+        const prehashHex = Array.from(prehash).map(b => b.toString(16).padStart(2, '0')).join('');
+        outputLog.textContent = `Elements: ${e.detail.elementCount}\nCanonical Base64: ${e.detail.base64}\nPrehash (SHA-256): ${prehashHex}`;
+      } else {
+        outputLog.textContent = 'Input is empty.';
+      }
+    });
+
+    // Handle standard submit
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const b64 = credInput.getBase64();
+      const username = document.getElementById('username').value;
+      outputLog.textContent = `[FORM SUBMITTED!]\nUsername: ${username}\nCredential Wire Payload (Base64): ${b64}\n\n-> Ready to be received by backend enroll_credential() or verify_credential()!`;
+    });
+
+    // Theme switching demo
+    function setTheme(theme) {
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      formCard.className = 'card';
+      if (theme !== 'default') {
+        formCard.classList.add(`theme-${theme}`);
+      }
+    }
+  </script>
+</body>
+</html>

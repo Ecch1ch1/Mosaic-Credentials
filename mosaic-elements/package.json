@@ -1,0 +1,30 @@
+{
+  "name": "@mosaic-credentials/elements",
+  "version": "0.1.0",
+  "description": "Drop-in Web Component <mosaic-credential-input> for unbruteforceable multi-modal authentication secrets",
+  "main": "mosaic-credential-input.js",
+  "module": "mosaic-credential-input.js",
+  "types": "mosaic-credential-input.d.ts",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ecch1ch1/Mosaic-Credentials.git"
+  },
+  "keywords": [
+    "mosaic-credential",
+    "web-component",
+    "custom-elements",
+    "authentication",
+    "passwords",
+    "security",
+    "cryptography"
+  ],
+  "author": "Ecch1ch1",
+  "license": "MIT OR Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Ecch1ch1/Mosaic-Credentials/issues"
+  },
+  "homepage": "https://github.com/Ecch1ch1/Mosaic-Credentials#readme"
+}
