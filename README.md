@@ -129,6 +129,21 @@ Open `http://localhost:5050` to register users, test logins, and inspect live da
 
 ---
 
+## ⚡ Framework Integration Recipes
+
+Ready-to-use, copy-pasteable 1-minute integration guides for your frontend and backend stack:
+
+* **React / Next.js**: [Reusable TypeScript Component & Form Handler](FRAMEWORK_RECIPES.md#2-react--nextjs-typescript)
+* **Vanilla HTML + CSS**: [Single Script Drop-in](FRAMEWORK_RECIPES.md#1-vanilla-html--css)
+* **Python (FastAPI)**: [Pydantic Models & Async Endpoints](FRAMEWORK_RECIPES.md#3-fastapi)
+* **Python (Flask)**: [Standard 5-Line Verification Route](FRAMEWORK_RECIPES.md#4-flask)
+* **Rust (Axum)**: [High-Performance Async Route Handler](FRAMEWORK_RECIPES.md#5-axum-rust)
+* **Rust (Actix-Web)**: [Standard Actix JSON Handler](FRAMEWORK_RECIPES.md#6-actix-web-rust)
+
+See [FRAMEWORK_RECIPES.md](FRAMEWORK_RECIPES.md) for full code examples.
+
+---
+
 ## 🗄️ Database Integration
 
 Mosaic Credentials seamlessly integrates with any database (SQLite, PostgreSQL, MongoDB, MySQL). You only need a single text/JSON column (~220 bytes):

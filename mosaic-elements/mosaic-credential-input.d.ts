@@ -82,4 +82,10 @@ declare global {
   interface HTMLElementTagNameMap {
     'mosaic-credential-input': MosaicCredentialInput;
   }
+
+  namespace JSX {
+    interface IntrinsicElements {
+      'mosaic-credential-input': any;
+    }
+  }
 }
