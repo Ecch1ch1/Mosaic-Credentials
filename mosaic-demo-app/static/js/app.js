@@ -1,223 +1,10 @@
 /**
  * Mosaic Credential Full-Stack Test Site — Frontend Controller
+ * Powered by <mosaic-credential-input> Web Component & SQLite backend
  */
 
-// Helper: convert Uint8Array to Hex string
-function bytesToHex(bytes) {
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Credential Form State Manager
-class CredentialFormManager {
-  constructor(options) {
-    this.prefix = options.prefix; // 'reg' or 'login'
-    this.elements = [];
-    this.mode = 'credential'; // 'credential' | 'edit'
-
-    this.inputEl = document.getElementById(`${this.prefix}-input`);
-    this.modeCredBtn = document.getElementById(`${this.prefix}-mode-cred`);
-    this.modeEditBtn = document.getElementById(`${this.prefix}-mode-edit`);
-    this.streamEl = document.getElementById(`${this.prefix}-stream`);
-    this.previewEl = document.getElementById(`${this.prefix}-preview`);
-    this.dropzoneEl = document.getElementById(`${this.prefix}-dropzone`);
-    this.filePickerEl = document.getElementById(`${this.prefix}-file-picker`);
-    this.addBsBtn = document.getElementById(`${this.prefix}-add-bs`);
-    this.removeLastBtn = document.getElementById(`${this.prefix}-remove-last`);
-    this.clearBtn = document.getElementById(`${this.prefix}-clear`);
-
-    this.bindEvents();
-    this.render();
-  }
-
-  bindEvents() {
-    this.modeCredBtn.addEventListener('click', () => {
-      this.mode = 'credential';
-      this.modeCredBtn.classList.add('active');
-      this.modeEditBtn.classList.remove('active');
-      this.inputEl.focus();
-    });
-
-    this.modeEditBtn.addEventListener('click', () => {
-      this.mode = 'edit';
-      this.modeEditBtn.classList.add('active');
-      this.modeCredBtn.classList.remove('active');
-      this.inputEl.focus();
-    });
-
-    this.inputEl.addEventListener('keydown', (e) => {
-      if (this.mode === 'credential') {
-        if (e.key === 'Backspace') {
-          e.preventDefault();
-          this.addChar(0x0008);
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          this.addChar(10); // '\n'
-        } else if (e.key === 'Tab') {
-          e.preventDefault();
-          this.addChar(9); // '\t'
-        }
-      }
-    });
-
-    this.inputEl.addEventListener('input', () => {
-      const val = this.inputEl.value;
-      if (val) {
-        for (const ch of val) {
-          this.elements.push({
-            type: 'CHAR',
-            char: ch,
-            codepoint: ch.codePointAt(0),
-            isBackspace: ch.codePointAt(0) === 8
-          });
-        }
-        this.inputEl.value = '';
-        this.render();
-      }
-    });
-
-    this.addBsBtn.addEventListener('click', () => {
-      this.addChar(0x0008);
-      this.inputEl.focus();
-    });
-
-    this.removeLastBtn.addEventListener('click', () => {
-      if (this.elements.length > 0) {
-        this.elements.pop();
-        this.render();
-      }
-      this.inputEl.focus();
-    });
-
-    this.clearBtn.addEventListener('click', () => {
-      this.elements = [];
-      this.render();
-      this.inputEl.focus();
-    });
-
-    this.dropzoneEl.addEventListener('click', () => this.filePickerEl.click());
-
-    this.dropzoneEl.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      this.dropzoneEl.classList.add('dragover');
-    });
-
-    this.dropzoneEl.addEventListener('dragleave', () => {
-      this.dropzoneEl.classList.remove('dragover');
-    });
-
-    this.dropzoneEl.addEventListener('drop', (e) => {
-      e.preventDefault();
-      this.dropzoneEl.classList.remove('dragover');
-      if (e.dataTransfer.files.length > 0) {
-        this.handleFiles(e.dataTransfer.files);
-      }
-    });
-
-    this.filePickerEl.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        this.handleFiles(e.target.files);
-        this.filePickerEl.value = '';
-      }
-    });
-  }
-
-  addChar(cp) {
-    this.elements.push({
-      type: 'CHAR',
-      char: String.fromCodePoint(cp),
-      codepoint: cp,
-      isBackspace: cp === 8
-    });
-    this.render();
-  }
-
-  async handleFiles(files) {
-    for (const file of files) {
-      const buffer = await file.arrayBuffer();
-      const u8 = new Uint8Array(buffer);
-      this.elements.push({
-        type: 'BLOB',
-        hex: bytesToHex(u8),
-        filename: file.name,
-        length: u8.length
-      });
-    }
-    this.render();
-  }
-
-  setElements(newElements) {
-    this.elements = newElements;
-    this.render();
-  }
-
-  getPayload() {
-    return this.elements.map(el => {
-      if (el.type === 'CHAR') {
-        return { type: 'CHAR', char: el.char, codepoint: el.codepoint };
-      } else {
-        return { type: 'BLOB', hex: el.hex, filename: el.filename };
-      }
-    });
-  }
-
-  render() {
-    // 1. Structural stream view
-    this.streamEl.innerHTML = '';
-    if (this.elements.length === 0) {
-      this.streamEl.innerHTML = '<span style="color: var(--text-dim); font-size: 0.82rem; padding: 0.2rem;">(Empty secret. Type text or drop files)</span>';
-    } else {
-      this.elements.forEach((el, idx) => {
-        const pill = document.createElement('span');
-        pill.className = 'element-pill';
-        if (el.type === 'CHAR') {
-          if (el.isBackspace) {
-            pill.classList.add('pill-bs');
-            pill.innerHTML = `⌫ &lt;BS&gt;`;
-          } else {
-            pill.classList.add('pill-char');
-            pill.textContent = `'${el.char}'`;
-          }
-        } else if (el.type === 'BLOB') {
-          pill.classList.add('pill-blob');
-          pill.innerHTML = `📦 ${el.filename || 'blob'} (${el.length || el.hex.length/2}B)`;
-        }
-
-        const del = document.createElement('span');
-        del.className = 'pill-del';
-        del.textContent = '×';
-        del.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          this.elements.splice(idx, 1);
-          this.render();
-        });
-        pill.appendChild(del);
-        this.streamEl.appendChild(pill);
-      });
-    }
-
-    // 2. Display preview (§5.2)
-    const previewChars = [];
-    for (const el of this.elements) {
-      if (el.type === 'CHAR') {
-        if (el.isBackspace) {
-          if (previewChars.length > 0) previewChars.pop();
-        } else {
-          previewChars.push(el.char);
-        }
-      } else if (el.type === 'BLOB') {
-        previewChars.push(`[BLOB:${el.length || el.hex.length/2}B]`);
-      }
-    }
-    this.previewEl.textContent = previewChars.length > 0 ? previewChars.join('') : '(empty)';
-  }
-}
-
-// App Controller
 class DemoApp {
   constructor() {
-    this.regManager = new CredentialFormManager({ prefix: 'reg' });
-    this.loginManager = new CredentialFormManager({ prefix: 'login' });
-
     this.initTabs();
     this.initForms();
     this.initPresets();
@@ -248,6 +35,7 @@ class DemoApp {
     document.getElementById('btn-submit-register').addEventListener('click', async () => {
       const username = document.getElementById('reg-username').value.trim();
       const statusBox = document.getElementById('reg-status');
+      const regInput = document.getElementById('reg-cred-input');
 
       if (!username) {
         statusBox.className = 'status-alert status-alert-error';
@@ -259,12 +47,13 @@ class DemoApp {
       statusBox.style.display = 'none';
 
       try {
+        const b64Payload = regInput.getBase64();
         const res = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: username,
-            elements: this.regManager.getPayload(),
+            credential_base64: b64Payload,
             fast_mode: true
           })
         });
@@ -304,6 +93,7 @@ class DemoApp {
     document.getElementById('btn-submit-login').addEventListener('click', async () => {
       const username = document.getElementById('login-username').value.trim();
       const statusBox = document.getElementById('login-status');
+      const loginInput = document.getElementById('login-cred-input');
 
       if (!username) {
         statusBox.className = 'status-alert status-alert-error';
@@ -315,12 +105,13 @@ class DemoApp {
       statusBox.style.display = 'none';
 
       try {
+        const b64Payload = loginInput.getBase64();
         const res = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: username,
-            elements: this.loginManager.getPayload()
+            credential_base64: b64Payload
           })
         });
 
@@ -357,49 +148,40 @@ class DemoApp {
   }
 
   initPresets() {
+    // Preset: Alice (Pass<BS><BS><BS>word)
     document.getElementById('preset-alice').addEventListener('click', () => {
       document.getElementById('reg-username').value = 'alice';
-      const els = [
-        { type: 'CHAR', char: 'P', codepoint: 80 },
-        { type: 'CHAR', char: 'a', codepoint: 97 },
-        { type: 'CHAR', char: 's', codepoint: 115 },
-        { type: 'CHAR', char: 's', codepoint: 115 },
-        { type: 'CHAR', char: '\u0008', codepoint: 8, isBackspace: true },
-        { type: 'CHAR', char: '\u0008', codepoint: 8, isBackspace: true },
-        { type: 'CHAR', char: '\u0008', codepoint: 8, isBackspace: true },
-        { type: 'CHAR', char: 'w', codepoint: 119 },
-        { type: 'CHAR', char: 'o', codepoint: 111 },
-        { type: 'CHAR', char: 'r', codepoint: 114 },
-        { type: 'CHAR', char: 'd', codepoint: 100 },
-      ];
-      this.regManager.setElements(els);
+      const regInput = document.getElementById('reg-cred-input');
+      regInput.clear();
+      regInput.addText("Pass");
+      regInput.addBackspace();
+      regInput.addBackspace();
+      regInput.addBackspace();
+      regInput.addText("word");
       document.querySelector('[data-tab="register"]').click();
     });
 
+    // Preset: Bob (Bob + Binary PNG header + 99)
     document.getElementById('preset-bob').addEventListener('click', () => {
       document.getElementById('reg-username').value = 'bob';
       const fakeImageBytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52]);
-      const els = [
-        { type: 'CHAR', char: 'B', codepoint: 66 },
-        { type: 'CHAR', char: 'o', codepoint: 111 },
-        { type: 'CHAR', char: 'b', codepoint: 98 },
-        { type: 'BLOB', hex: bytesToHex(fakeImageBytes), filename: 'avatar.png', length: fakeImageBytes.length },
-        { type: 'CHAR', char: '9', codepoint: 57 },
-        { type: 'CHAR', char: '9', codepoint: 57 },
-      ];
-      this.regManager.setElements(els);
+      const regInput = document.getElementById('reg-cred-input');
+      regInput.clear();
+      regInput.addText("Bob");
+      regInput.addBlob(fakeImageBytes, "avatar.png");
+      regInput.addText("99");
       document.querySelector('[data-tab="register"]').click();
     });
 
+    // Preset: Charlie (🦀 + ArrowUp + ArrowDown + 🔑)
     document.getElementById('preset-charlie').addEventListener('click', () => {
       document.getElementById('reg-username').value = 'charlie';
-      const els = [
-        { type: 'CHAR', char: '🦀', codepoint: 0x1F980 },
-        { type: 'CHAR', char: '🔑', codepoint: 0x1F511 },
-        { type: 'CHAR', char: '©', codepoint: 0x00A9 },
-        { type: 'CHAR', char: '\0', codepoint: 0 },
-      ];
-      this.regManager.setElements(els);
+      const regInput = document.getElementById('reg-cred-input');
+      regInput.clear();
+      regInput.addChar("🦀");
+      regInput.addArrow("ArrowUp");
+      regInput.addArrow("ArrowDown");
+      regInput.addChar("🔑");
       document.querySelector('[data-tab="register"]').click();
     });
   }

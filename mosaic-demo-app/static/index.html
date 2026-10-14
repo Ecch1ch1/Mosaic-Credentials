@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mosaic Credential — Full-Stack Auth &amp; Database Test Site</title>
   <link rel="stylesheet" href="css/styles.css">
+  <!-- Include the brand-new Drop-in Web Component -->
+  <script src="js/mosaic-credential-input.js"></script>
 </head>
 <body>
 
@@ -15,7 +17,7 @@
         <div class="brand-icon">MC</div>
         <div>
           <span class="brand-title">Mosaic Credential</span>
-          <span class="brand-badge">SQLite Live Auth</span>
+          <span class="brand-badge">SQLite Live Auth (Web Component Edition)</span>
         </div>
       </div>
       <nav class="nav-tabs" aria-label="Main Navigation">
@@ -43,7 +45,7 @@
       <div class="glass-card" style="max-width: 850px; margin: 0 auto;">
         <h2 class="card-title"><span>🔐</span> Register User Account (§10.1)</h2>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
-          Creates a structured credential, derives an Argon2id verifier, and stores a compact <strong>VerifierRecord</strong> into the SQLite database.
+          Creates a structured credential via <strong>&lt;mosaic-credential-input&gt;</strong>, derives an Argon2id verifier on the server, and stores a compact <strong>VerifierRecord</strong> (~160–220 bytes) into the SQLite database.
         </p>
 
         <!-- Username -->
@@ -52,40 +54,19 @@
           <input type="text" id="reg-username" class="input-text" placeholder="e.g. alice, bob, alex" autocomplete="off">
         </div>
 
-        <!-- Credential Composer -->
+        <!-- Drop-in Web Component -->
         <div class="form-group">
-          <label class="form-label">Mosaic Credential Composition</label>
-
-          <div class="mode-toggle">
-            <button type="button" class="mode-toggle-btn active" id="reg-mode-cred">Credential Mode (BS=Secret)</button>
-            <button type="button" class="mode-toggle-btn" id="reg-mode-edit">Edit Mode</button>
-          </div>
-
-          <input type="text" id="reg-input" class="input-text" placeholder="Type secret characters... Press Backspace to append <BS> secret element" autocomplete="off">
-
-          <div class="btn-group">
-            <button type="button" class="btn btn-purple" id="reg-add-bs"><span>⌫</span> Add Backspace (U+0008)</button>
-            <button type="button" class="btn btn-secondary" id="reg-remove-last"><span>↩</span> Remove Last</button>
-            <button type="button" class="btn btn-danger" id="reg-clear"><span>🗑</span> Clear</button>
-          </div>
-
-          <!-- Dropzone -->
-          <div class="dropzone" id="reg-dropzone">
-            <div class="dropzone-text">📁 Drop file (image/audio/binary) here or click to browse</div>
-            <input type="file" id="reg-file-picker" style="display: none;" multiple>
-          </div>
-
-          <!-- Structural View -->
-          <div style="margin-top: 1rem;">
-            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Structural Stream (Real Authenticated Secret §5.2)</div>
-            <div class="element-stream" id="reg-stream"></div>
-          </div>
-
-          <!-- Display Preview -->
-          <div style="margin-top: 0.75rem;">
-            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Display Preview (Visual Simulation Only §5.2)</div>
-            <div class="preview-box" id="reg-preview">(empty)</div>
-          </div>
+          <label class="form-label" for="reg-cred-input">
+            Mosaic Credential 
+            <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: normal; margin-left: 0.5rem;">
+              (Powered by &lt;mosaic-credential-input&gt;)
+            </span>
+          </label>
+          <mosaic-credential-input 
+            id="reg-cred-input" 
+            name="credential" 
+            placeholder="Type characters, press Backspace, use arrow keys, or drop files...">
+          </mosaic-credential-input>
         </div>
 
         <!-- Submit Button -->
@@ -102,7 +83,7 @@
       <div class="glass-card" style="max-width: 850px; margin: 0 auto;">
         <h2 class="card-title"><span>🛡️</span> Authenticate / Login (§10.2)</h2>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
-          Reconstructs candidate credential, calculates prehash, and verifies using Argon2id against stored record in SQLite.
+          Reconstructs candidate credential via <strong>&lt;mosaic-credential-input&gt;</strong> and verifies using server-side Argon2id against the stored record in SQLite.
         </p>
 
         <!-- Username -->
@@ -111,37 +92,19 @@
           <input type="text" id="login-username" class="input-text" placeholder="Enter your registered username" autocomplete="off">
         </div>
 
-        <!-- Credential Composer -->
+        <!-- Drop-in Web Component -->
         <div class="form-group">
-          <label class="form-label">Candidate Credential</label>
-
-          <div class="mode-toggle">
-            <button type="button" class="mode-toggle-btn active" id="login-mode-cred">Credential Mode (BS=Secret)</button>
-            <button type="button" class="mode-toggle-btn" id="login-mode-edit">Edit Mode</button>
-          </div>
-
-          <input type="text" id="login-input" class="input-text" placeholder="Type your password components..." autocomplete="off">
-
-          <div class="btn-group">
-            <button type="button" class="btn btn-purple" id="login-add-bs"><span>⌫</span> Add Backspace (U+0008)</button>
-            <button type="button" class="btn btn-secondary" id="login-remove-last"><span>↩</span> Remove Last</button>
-            <button type="button" class="btn btn-danger" id="login-clear"><span>🗑</span> Clear</button>
-          </div>
-
-          <div class="dropzone" id="login-dropzone">
-            <div class="dropzone-text">📁 Drop file (image/audio/binary) here or click to browse</div>
-            <input type="file" id="login-file-picker" style="display: none;" multiple>
-          </div>
-
-          <div style="margin-top: 1rem;">
-            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Structural Stream</div>
-            <div class="element-stream" id="login-stream"></div>
-          </div>
-
-          <div style="margin-top: 0.75rem;">
-            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600;">Display Preview</div>
-            <div class="preview-box" id="login-preview">(empty)</div>
-          </div>
+          <label class="form-label" for="login-cred-input">
+            Candidate Mosaic Credential
+            <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: normal; margin-left: 0.5rem;">
+              (Powered by &lt;mosaic-credential-input&gt;)
+            </span>
+          </label>
+          <mosaic-credential-input 
+            id="login-cred-input" 
+            name="credential" 
+            placeholder="Enter candidate secret, press Backspace, or drop files...">
+          </mosaic-credential-input>
         </div>
 
         <!-- Submit Button -->

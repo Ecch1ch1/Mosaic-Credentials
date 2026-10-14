@@ -8,6 +8,7 @@ import json
 import os
 import sqlite3
 import sys
+import base64
 from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory
 
@@ -26,6 +27,7 @@ from mosaic_credential import (
     VerifyResult,
     enroll,
     verify,
+    parse,
 )
 
 app = Flask(__name__, static_folder="static", static_url_path="")
@@ -92,8 +94,13 @@ def api_register():
         if not username:
             return jsonify({"success": False, "error": "Username cannot be empty"}), 400
 
-        elements_data = data.get("elements", [])
-        elements = parse_elements_from_json(elements_data)
+        b64_data = data.get("credential") or data.get("credential_base64")
+        if b64_data:
+            raw_bytes = base64.b64decode(b64_data)
+            elements = parse(raw_bytes)
+        else:
+            elements_data = data.get("elements", [])
+            elements = parse_elements_from_json(elements_data)
 
         # Enforce size policy (§7.1)
         policy = Policy(max_encoded_bits=160_000_000, max_blob_bits=160_000_000, max_elements=5000)
@@ -143,7 +150,7 @@ def api_register():
 def api_login():
     """
     Authenticate a user (§10.2).
-    Receives: { username: str, elements: list }
+    Receives: { username: str, credential_base64?: str, elements?: list }
     Validates against stored VerifierRecord in SQLite.
     """
     try:
@@ -152,8 +159,13 @@ def api_login():
         if not username:
             return jsonify({"success": False, "error": "Username cannot be empty"}), 400
 
-        elements_data = data.get("elements", [])
-        candidate_elements = parse_elements_from_json(elements_data)
+        b64_data = data.get("credential") or data.get("credential_base64")
+        if b64_data:
+            raw_bytes = base64.b64decode(b64_data)
+            candidate_elements = parse(raw_bytes)
+        else:
+            elements_data = data.get("elements", [])
+            candidate_elements = parse_elements_from_json(elements_data)
 
         # 1. Fetch stored record from SQLite
         with get_db() as conn:

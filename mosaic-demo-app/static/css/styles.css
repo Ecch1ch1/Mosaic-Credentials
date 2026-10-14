@@ -40,6 +40,18 @@
   --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+mosaic-credential-input {
+  --mosaic-bg: rgba(10, 13, 20, 0.95);
+  --mosaic-border: rgba(255, 255, 255, 0.14);
+  --mosaic-focus: #00f0ff;
+  --mosaic-text: #f1f5f9;
+  --mosaic-muted: #64748b;
+  --mosaic-accent: #9d4edd;
+  --mosaic-radius: 10px;
+  margin-top: 0.35rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
