@@ -168,7 +168,10 @@ def enroll_with_salt(
 
 
 def parse_phc_params(phc: str) -> Optional[AuthParams]:
-    """Extract parameters from an Argon2id PHC string."""
+    """Extract parameters from an Argon2id PHC string (§13.3).
+
+    Requires mandatory m, t, p parameters to be present. Returns None if missing or malformed (fail-closed).
+    """
     try:
         parts = phc.split("$")
         # $argon2id$v=19$m=65536,t=3,p=1$...
@@ -180,11 +183,23 @@ def parse_phc_params(phc: str) -> Optional[AuthParams]:
             k, v = item.split("=")
             params_dict[k] = int(v)
 
+        if "m" not in params_dict or "t" not in params_dict or "p" not in params_dict:
+            return None
+
+        salt_bytes = 16
+        if len(parts) >= 5 and parts[4]:
+            try:
+                import base64
+                salt_b = base64.b64decode(parts[4] + "==")
+                salt_bytes = len(salt_b)
+            except Exception:
+                pass
+
         return AuthParams(
-            memory_cost_kib=params_dict.get("m", 65536),
-            iterations=params_dict.get("t", 3),
-            parallelism=params_dict.get("p", 1),
-            salt_length_bytes=16,
+            memory_cost_kib=params_dict["m"],
+            iterations=params_dict["t"],
+            parallelism=params_dict["p"],
+            salt_length_bytes=salt_bytes,
             output_length_bytes=32,
         )
     except Exception:
@@ -206,8 +221,9 @@ def verify(
         limits = limits or ResourceLimits()
 
         params = parse_phc_params(record.verifier)
-        if params is not None:
-            limits.check(params)
+        if params is None:
+            return VerifyResult.DENIED
+        limits.check(params)
 
         digest = streaming_prehash(elements)
         argon2.low_level.verify_secret(

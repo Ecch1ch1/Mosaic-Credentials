@@ -75,10 +75,11 @@ pub(crate) fn verify_inner(
     let parsed_hash = PasswordHash::new(&record.verifier)
         .map_err(|e| Error::InvalidVerifier(format!("cannot parse PHC string: {e}")))?;
 
-    // Extract and validate Argon2 parameters against resource limits.
-    if let Some(params) = extract_params_from_phc(&parsed_hash) {
-        limits.check(&params).map_err(|e| Error::ResourcePolicyRejected(e))?;
-    }
+    // Extract and validate Argon2 parameters against resource limits (fail-closed, §13.3).
+    let params = extract_params_from_phc(&parsed_hash).ok_or_else(|| {
+        Error::InvalidVerifier("missing or malformed Argon2 parameters in PHC verifier".to_string())
+    })?;
+    limits.check(&params).map_err(Error::ResourcePolicyRejected)?;
 
     // Step 4: Recompute D from the candidate.
     let mut digest = streaming_prehash(elements);
@@ -92,43 +93,30 @@ pub(crate) fn verify_inner(
     Ok(result.is_ok())
 }
 
-/// Extract AuthParams from a parsed PHC hash for resource-limit checking.
+/// Extract AuthParams from a parsed PHC hash for resource-limit checking (§13.3).
+///
+/// Requires mandatory Argon2 parameters (m, t, p) to be explicitly present
+/// and valid integers. Returns `None` if any parameter is missing or malformed (fail-closed).
 fn extract_params_from_phc(hash: &PasswordHash) -> Option<crate::params::AuthParams> {
-    // The argon2 crate's PasswordHash stores params in the PHC string.
-    // We parse m, t, p from the params field.
-    let params_str = hash.params.iter().collect::<Vec<_>>();
+    let mut memory_cost_kib: Option<u32> = None;
+    let mut iterations: Option<u32> = None;
+    let mut parallelism: Option<u32> = None;
 
-    let mut memory_cost_kib = 65536u32;
-    let mut iterations = 3u32;
-    let mut parallelism = 1u32;
-
-    for (ident, value) in params_str {
+    for (ident, value) in hash.params.iter() {
         match ident.as_str() {
-            "m" => {
-                if let Ok(v) = value.decimal() {
-                    memory_cost_kib = v;
-                }
-            }
-            "t" => {
-                if let Ok(v) = value.decimal() {
-                    iterations = v;
-                }
-            }
-            "p" => {
-                if let Ok(v) = value.decimal() {
-                    parallelism = v;
-                }
-            }
+            "m" => memory_cost_kib = value.decimal().ok(),
+            "t" => iterations = value.decimal().ok(),
+            "p" => parallelism = value.decimal().ok(),
             _ => {}
         }
     }
 
     Some(crate::params::AuthParams {
-        memory_cost_kib,
-        iterations,
-        parallelism,
-        salt_length_bytes: 16,
-        output_length_bytes: 32,
+        memory_cost_kib: memory_cost_kib?,
+        iterations: iterations?,
+        parallelism: parallelism?,
+        salt_length_bytes: hash.salt.map(|s| s.as_str().len()).unwrap_or(16),
+        output_length_bytes: hash.hash.map(|h| h.as_bytes().len()).unwrap_or(32),
     })
 }
 
@@ -310,5 +298,55 @@ mod tests {
         assert_eq!(verify(&elements, &upgraded_record, &limits), VerifyResult::Ok);
         assert!(!needs_upgrade(&upgraded_record, &target_params));
     }
+
+    #[test]
+    fn reject_exceeded_resource_limits() {
+        let elements = vec![Element::Char('K'), Element::Char('e'), Element::Char('y')];
+        let record = enroll(&elements, &AuthParams::fast_testing()).unwrap();
+
+        // Enforce strict limits lower than what the record uses
+        let strict_limits = ResourceLimits {
+            max_memory_kib: 128, // lower than fast_testing's 256
+            max_iterations: 1,
+            max_parallelism: 1,
+        };
+
+        // Outer API must return Denied
+        assert_eq!(verify(&elements, &record, &strict_limits), VerifyResult::Denied);
+
+        // Inner API must return ResourcePolicyRejected
+        let inner_err = verify_inner(&elements, &record, &strict_limits).unwrap_err();
+        match inner_err {
+            Error::ResourcePolicyRejected(msg) => {
+                assert!(msg.contains("exceeds resource limit"));
+            }
+            other => panic!("expected ResourcePolicyRejected, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn reject_malformed_phc_params() {
+        let elements = vec![Element::Char('T')];
+        // Missing m parameter in Argon2 PHC
+        let malformed_record = VerifierRecord {
+            format: "mosaic-credential".to_string(),
+            format_version: 1,
+            profile: 1,
+            prehash: "sha256-domain-v1".to_string(),
+            verifier: "$argon2id$v=19$t=1,p=1$c2FsdHNhbHQ$aGFzaGhhc2g".to_string(),
+        };
+        let limits = ResourceLimits::default();
+
+        assert_eq!(verify(&elements, &malformed_record, &limits), VerifyResult::Denied);
+
+        let inner_err = verify_inner(&elements, &malformed_record, &limits).unwrap_err();
+        match inner_err {
+            Error::InvalidVerifier(msg) => {
+                assert!(msg.contains("cannot parse PHC string") || msg.contains("missing or malformed"), "actual msg: {}", msg);
+            }
+            other => panic!("expected InvalidVerifier, got: {:?}", other),
+        }
+    }
 }
+
 

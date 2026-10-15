@@ -21,25 +21,27 @@ Traditional passwords limit users to a single string of ASCII characters, vulner
 2. **Backspace as a Secret (`U+0008`)**: Backspaces typed in credential-entry mode are preserved as secret elements rather than visual deletions, completely confounding dictionary attacks and keystroke guessers.
 3. **Arbitrary Binary BLOBs**: Files, image snippets, cryptographic seeds, audio bytes, or biometric chunks interleaved directly into the sequence.
 
-### 🛡️ Why It Is Practically Unbruteforceable
-* **Astronomical Key Space**: Adding even a 1 KB file chunk creates $256^{1024} = 2^{8192} \approx 10^{2466}$ possibilities (surpassing the atoms in the universe).
-* **Constant Database Footprint**: Regardless of whether your secret is 8 characters or a 100 MB file, it is streamed into a domain-separated SHA-256 prehash and hashed with memory-hard **Argon2id**. The database **only ever stores a compact ~220-byte record**.
-* **Zero Pass-the-Hash**: The server requires the raw framed secret sequence $S$ to authenticate. Possession of the stored database hash grants an attacker zero ability to log in.
+### 🛡️ Security Model & Invariants
+
+* **Strict Avalanche Effect on Arbitrary Streams**: A credential can incorporate arbitrary input data—from short mnemonics to multi-megabyte binary assets. Through SHA-256's strict avalanche criterion, changing even a single bit in a 50 MB file, modifying an image's EXIF metadata, or swapping the position of an arrow key completely scrambles the 256-bit prehash $D$ ($2^{256} > 1.15 \times 10^{77}$ states). Authentication does not invert the hash; it only requires that the identical sequence produces the matching $D$.
+* **Hidden Composition Multiplier**: Unlike traditional passwords where attackers know they are cracking an alphanumeric string, the stored Argon2id verifier reveals **zero information about the credential's structural composition**. The database contains no indicators of element counts, types, non-printable control keys, or binary BLOBs. An attacker cannot run conventional dictionary rules—they must guess the entire multi-dimensional composition.
+* **Zero Pass-the-Hash**: The server requires the candidate secret sequence $S$ at authentication time to recompute $D$. Possession of the stored database verifier grants an attacker zero ability to authenticate.
+* **Constant Database Footprint**: Regardless of whether a secret is 8 characters or a 100 MB file, it streams into a fixed 32-byte domain-separated prehash and is hashed with memory-hard **Argon2id**. The database **only ever stores a compact ~220-byte PHC record**.
 
 ---
 
 ## 🏛️ Architecture & Framing
 
-A Mosaic Credential wire stream $S$ is strictly framed in big-endian binary format:
+A Mosaic Credential wire stream $S$ is strictly framed in big-endian binary format (§6.2):
 
 ```text
-+----------+---------------+---------------+-----+----------+
-|  0x01    | Element 1     | Element 2     | ... |  0xFF    |
-| (HEADER) | (CHAR / BLOB) | (CHAR / BLOB) |     |  (END)   |
-+----------+---------------+---------------+-----+----------+
++-----------------------------------+---------------+---------------+-----+----------+
+| 0x4D 0x43 0x52 0x44  0x0001 0x0001| Element 1     | Element 2     | ... |  0xFF    |
+|   MAGIC ("MCRD")     VER=1  PROF=1| (CHAR / BLOB) | (CHAR / BLOB) |     |  (END)   |
++-----------------------------------+---------------+---------------+-----+----------+
 ```
 
-* **Header**: Magic byte `0x01` (`MC v1`).
+* **Header (8 bytes)**: Magic ASCII `MCRD` (`0x4D435244`) || Version `0x0001` (u16 BE) || Profile `0x0001` (u16 BE).
 * **CHAR Element**: Tag `0x01` || 4-byte big-endian Unicode scalar value ($0 \le U \le 0x10FFFF$, excluding surrogate codepoints).
 * **BLOB Element**: Tag `0x02` || 8-byte big-endian length $L$ || $L$ raw bytes.
 * **END Delimiter**: Byte `0xFF`.
@@ -48,7 +50,7 @@ A Mosaic Credential wire stream $S$ is strictly framed in big-endian binary form
 1. **Domain-Separated Prehash**:
    $$D = \text{SHA-256}\Big(\text{"MOSAIC-CREDENTIAL/PREHASH/V1\textbackslash 0"} \parallel S\Big)$$
 2. **Memory-Hard Verification**:
-   $$\text{Verifier} = \text{Argon2id}\Big(\text{password}=D,\; \text{salt}=\text{CSPRNG}(16),\; m=65536\text{ KiB},\; t=3,\; p=4\Big)$$
+   $$\text{Verifier} = \text{Argon2id}\Big(\text{password}=D,\; \text{salt}=\text{CSPRNG}(16),\; m=65536\text{ KiB},\; t=3,\; p=1\Big)$$
 
 ---
 

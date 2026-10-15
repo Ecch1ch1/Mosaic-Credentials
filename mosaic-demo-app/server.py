@@ -113,7 +113,8 @@ def api_register():
         finalized_elements = builder.finalize()
 
         # Derive Argon2id verifier (§8.3, §10.1)
-        fast_mode = data.get("fast_mode", True)
+        # Default is OWASP Production (64 MiB, t=3, p=1); fast_mode enables 256 KiB testing.
+        fast_mode = bool(data.get("fast_mode", False))
         params = AuthParams.fast_testing() if fast_mode else AuthParams.default()
         record = enroll(finalized_elements, params)
 
@@ -140,6 +141,11 @@ def api_register():
             "stored_record": json.loads(record_json),
             "storage_size_bytes": record_bytes_len,
             "element_count": len(finalized_elements),
+            "params": {
+                "memory_cost_kib": params.memory_cost_kib,
+                "iterations": params.iterations,
+                "parallelism": params.parallelism,
+            },
         })
 
     except Exception as e:

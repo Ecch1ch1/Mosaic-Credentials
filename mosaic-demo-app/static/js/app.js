@@ -48,22 +48,25 @@ class DemoApp {
 
       try {
         const b64Payload = regInput.getBase64();
+        const kdfMode = document.getElementById('reg-kdf-mode')?.value || 'prod';
         const res = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: username,
             credential_base64: b64Payload,
-            fast_mode: true
+            fast_mode: (kdfMode === 'fast')
           })
         });
 
         const data = await res.json();
         if (data.success) {
+          const memStr = data.params && data.params.memory_cost_kib >= 65536 ? '64 MiB (OWASP Recommended)' : `${data.params?.memory_cost_kib || 256} KiB (Fast Testing)`;
           statusBox.className = 'status-alert status-alert-success';
           statusBox.innerHTML = `
             <strong>✓ Registration Successful!</strong><br>
             User <code>${data.username}</code> (ID: ${data.user_id}) stored in SQLite.<br>
+            <strong>Argon2id KDF:</strong> <span class="size-chip">${memStr}</span> (t=${data.params?.iterations || 3}, p=${data.params?.parallelism || 1})<br>
             <strong>Storage Footprint in DB:</strong> <span class="size-chip">${data.storage_size_bytes} bytes</span> (${data.element_count} elements)<br>
             <details style="margin-top: 0.5rem; font-size: 0.78rem;">
               <summary style="cursor: pointer; color: var(--accent-cyan);">View Stored VerifierRecord JSON (§9)</summary>

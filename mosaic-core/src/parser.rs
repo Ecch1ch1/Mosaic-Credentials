@@ -331,4 +331,48 @@ mod tests {
         let parsed = parse(&encoded).unwrap();
         assert_eq!(parsed, elements);
     }
+
+    #[test]
+    fn parser_fuzz_random_bytes_never_panics() {
+        // Pseudo-random linear congruential generator (LCG) for deterministic fast fuzzing
+        let mut seed: u64 = 0xDEADBEEFCAFE;
+        let mut next_byte = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (seed >> 33) as u8
+        };
+
+        // 1. Completely random byte buffers of varying lengths
+        for len in [0, 1, 2, 3, 4, 7, 8, 9, 13, 20, 64, 128, 512, 1024] {
+            for _ in 0..100 {
+                let random_data: Vec<u8> = (0..len).map(|_| next_byte()).collect();
+                // MUST NOT panic, only return Ok or Err
+                let _ = parse(&random_data);
+            }
+        }
+
+        // 2. Bit-flipped and mutated valid streams
+        let valid_stream = encoder::encode(&[
+            Element::Char('P'),
+            Element::Char('\u{0008}'),
+            Element::Blob(vec![1, 2, 3, 4]),
+            Element::Char('X'),
+        ]);
+
+        for _ in 0..500 {
+            let mut mutated = valid_stream.clone();
+            // Mutate 1 to 3 random bytes
+            let num_mutations = (next_byte() % 3) + 1;
+            for _ in 0..num_mutations {
+                let idx = (next_byte() as usize) % mutated.len();
+                mutated[idx] = next_byte();
+            }
+            let _ = parse(&mutated);
+        }
+
+        // 3. Truncations of valid stream
+        for i in 0..valid_stream.len() {
+            let _ = parse(&valid_stream[..i]);
+        }
+    }
 }
+
