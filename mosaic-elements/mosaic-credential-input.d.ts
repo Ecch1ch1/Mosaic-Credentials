@@ -32,6 +32,9 @@ export class MosaicCredentialInput extends HTMLElement {
   /** Current binding mode: 'portable' (default) or 'os-bound' */
   bindingMode: 'portable' | 'os-bound';
 
+  /** Whether Secret/Stealth Mode is active (mimics a standard password field, strictly portable) */
+  secretMode: boolean;
+
   /** Set the binding mode explicitly */
   setMode(mode: 'portable' | 'os-bound'): void;
 

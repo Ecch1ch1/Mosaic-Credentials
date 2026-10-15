@@ -69,6 +69,21 @@ mosaic-credential-input {
 
 ---
 
+## 🕵️ Secret / Stealth Mode
+
+When developers want a credential field that visually looks and behaves like a traditional `<input type="password">` (with standard bullet masking and no visible token badges or toolbars), add the `secret-mode` or `stealth` attribute:
+
+```html
+<mosaic-credential-input name="password" secret-mode placeholder="Enter password"></mosaic-credential-input>
+```
+
+* **Plausible Deniability & Shoulder-Surf Resistance**: Observers see only standard password bullets `••••••`.
+* **Secret Backspaces (`U+0008`)**: If a user hits Backspace, a bullet visually disappears from the screen, but the Backspace scalar is secretly preserved in the framed sequence. Anyone observing over the user's shoulder will fail authentication.
+* **Strictly Portable**: Secret mode automatically enforces portable Canonical PUA keys and disables OS-specific binding.
+* **Select-All Reset**: Pressing `Ctrl+A` / `Cmd+A` followed by Backspace completely clears the credential sequence.
+
+---
+
 ## 🧩 Programmatic JavaScript API
 
 You can also interact with the element directly via JavaScript:

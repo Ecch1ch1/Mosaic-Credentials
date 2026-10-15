@@ -224,6 +224,30 @@
       input[type="file"] {
         display: none;
       }
+
+      /* Secret / Stealth Mode: Looks like standard password field */
+      :host([secret-mode]) .toolbar,
+      :host([stealth]) .toolbar {
+        display: none !important;
+      }
+
+      :host([secret-mode]) .tokens-list,
+      :host([stealth]) .tokens-list {
+        display: none !important;
+      }
+
+      :host([secret-mode]) .mosaic-container,
+      :host([stealth]) .mosaic-container {
+        padding: 9px 12px;
+        min-height: 40px;
+      }
+
+      :host([secret-mode]) .text-entry,
+      :host([stealth]) .text-entry {
+        width: 100%;
+        font-size: 15px;
+        letter-spacing: 0.12em;
+      }
     </style>
 
     <div class="mosaic-container" id="container">
@@ -275,6 +299,8 @@
       this.elements = []; // Array of { type: 'CHAR', value: number, meta?: string } | { type: 'BLOB', value: Uint8Array, name: string }
       this.masked = true; // Visual mask
       this.bindingMode = 'portable'; // 'portable' (default) or 'os-bound'
+      this.isSecretMode = false;
+      this._bsHandledInKeyDown = false;
 
       // Cache DOM
       this.$container = this.shadowRoot.getElementById('container');
@@ -300,7 +326,7 @@
     }
 
     static get observedAttributes() {
-      return ['placeholder', 'name', 'required', 'theme', 'mode'];
+      return ['placeholder', 'name', 'required', 'theme', 'mode', 'secret-mode', 'stealth'];
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -308,6 +334,8 @@
         this.$textEntry.placeholder = newValue || '';
       } else if (name === 'mode' && newValue) {
         this.setMode(newValue);
+      } else if (name === 'secret-mode' || name === 'stealth') {
+        this._updateSecretModeState();
       }
     }
 
@@ -319,11 +347,23 @@
       if (this.hasAttribute('mode')) {
         this.setMode(this.getAttribute('mode'));
       }
+      this._updateSecretModeState();
 
       // Event listeners
       this.$inputRow.addEventListener('click', () => this.$textEntry.focus());
       this.$textEntry.addEventListener('keydown', this._onKeyDown);
       this.$textEntry.addEventListener('input', this._onInput);
+      this.$textEntry.addEventListener('paste', (e) => {
+        if (this.isSecretMode) {
+          const text = (e.clipboardData || window.clipboardData)?.getData('text');
+          if (text) {
+            for (const ch of text) {
+              this.elements.push({ type: 'CHAR', value: ch.codePointAt(0) });
+            }
+            this._updateFormValue();
+          }
+        }
+      });
       this.$bsBtn.addEventListener('click', () => this.addBackspace());
       this.$arrowsBtn.addEventListener('click', () => this.promptArrowPicker());
       this.$modeBtn.addEventListener('click', () => this.toggleMode());
@@ -340,7 +380,36 @@
       this._updateFormValue();
     }
 
+    _updateSecretModeState() {
+      const isSecret = this.hasAttribute('secret-mode') || this.hasAttribute('stealth');
+      this.isSecretMode = isSecret;
+      if (isSecret) {
+        this.bindingMode = 'portable'; // Secret mode is strictly portable (§secret-mode)
+        this.$textEntry.type = 'password';
+      } else {
+        this.$textEntry.type = 'text';
+      }
+    }
+
+    get secretMode() {
+      return this.isSecretMode;
+    }
+
+    set secretMode(val) {
+      if (val) {
+        this.setAttribute('secret-mode', '');
+      } else {
+        this.removeAttribute('secret-mode');
+        this.removeAttribute('stealth');
+      }
+      this._updateSecretModeState();
+    }
+
     setMode(mode) {
+      if (this.isSecretMode) {
+        this.bindingMode = 'portable'; // Secret mode is strictly portable
+        return;
+      }
       this.bindingMode = mode === 'os-bound' ? 'os-bound' : 'portable';
       if (this.bindingMode === 'os-bound') {
         this.$modeBtn.textContent = '🖥️ Mode: OS-Bound';
@@ -516,6 +585,38 @@
 
     // Internal Event Handlers
     _onKeyDown(e) {
+      if (this.isSecretMode) {
+        if (e.key === 'Backspace') {
+          // If all text is selected (e.g. Ctrl+A or Cmd+A), clear completely
+          const hasFullSelection = this.$textEntry.selectionStart === 0 &&
+                                   this.$textEntry.selectionEnd === this.$textEntry.value.length &&
+                                   this.$textEntry.value.length > 0;
+          if (hasFullSelection) {
+            this.clear();
+            return;
+          }
+
+          // In secret mode: Backspace is recorded as secret scalar CHAR(0x0008).
+          // We let the browser's native backspace visually delete one bullet from $textEntry.value!
+          this.elements.push({ type: 'CHAR', value: 0x0008 });
+          this._updateFormValue();
+          this._bsHandledInKeyDown = true;
+          return;
+        } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          e.preventDefault();
+          this.addArrow(e.key);
+          return;
+        } else if (/^F([1-9]|1[0-2])$/.test(e.key)) {
+          e.preventDefault();
+          this.addFunctionKey(e.key);
+          return;
+        } else if (e.key === 'Enter') {
+          return;
+        }
+        return;
+      }
+
+      // Standard Rich Token Mode
       if (e.key === 'Backspace') {
         // If user holds Shift+Backspace, delete last token
         if (e.shiftKey) {
@@ -546,6 +647,22 @@
     }
 
     _onInput(e) {
+      if (this.isSecretMode) {
+        if (e.inputType === 'insertText' && e.data) {
+          for (const ch of e.data) {
+            this.elements.push({ type: 'CHAR', value: ch.codePointAt(0) });
+          }
+          this._updateFormValue();
+        } else if (e.inputType === 'deleteContentBackward') {
+          if (!this._bsHandledInKeyDown) {
+            this.elements.push({ type: 'CHAR', value: 0x0008 });
+            this._updateFormValue();
+          }
+          this._bsHandledInKeyDown = false;
+        }
+        return;
+      }
+
       if (e.inputType === 'insertText' && e.data) {
         for (const ch of e.data) {
           this.addChar(ch);
@@ -560,6 +677,7 @@
     }
 
     _flushTextEntry() {
+      if (this.isSecretMode) return;
       if (this.$textEntry.value.length > 0) {
         for (const ch of this.$textEntry.value) {
           this.addChar(ch);
