@@ -48,9 +48,9 @@ A Mosaic Credential wire stream $S$ is strictly framed in big-endian binary form
 
 ### Two-Stage Cryptographic Derivation
 1. **Domain-Separated Prehash**:
-   $$D = \text{SHA-256}\Big(\text{"MOSAIC-CREDENTIAL/PREHASH/V1\textbackslash 0"} \parallel S\Big)$$
+   $$D = \text{SHA-256}\Big(\text{"MOSAIC-CREDENTIAL/PREHASH/V1"} \parallel \text{0x00} \parallel S\Big)$$
 2. **Memory-Hard Verification**:
-   $$\text{Verifier} = \text{Argon2id}\Big(\text{password}=D,\; \text{salt}=\text{CSPRNG}(16),\; m=65536\text{ KiB},\; t=3,\; p=1\Big)$$
+   $$\text{Verifier} = \text{Argon2id}\Big(\text{password}=D, \text{salt}=\text{CSPRNG}(16), m=65536\text{ KiB}, t=3, p=1\Big)$$
 
 ---
 
