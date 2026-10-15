@@ -27,6 +27,12 @@
         <button class="tab-btn" data-tab="login">
           <span>🛡️</span> Login
         </button>
+        <button class="tab-btn" data-tab="secret-register">
+          <span>🕵️</span> Secret Register
+        </button>
+        <button class="tab-btn" data-tab="secret-login">
+          <span>🕶️</span> Secret Login
+        </button>
         <button class="tab-btn" data-tab="database">
           <span>🗄️</span> SQLite Inspector
         </button>
@@ -128,7 +134,110 @@
       </div>
     </section>
 
-    <!-- TAB 3: DATABASE INSPECTOR -->
+    <!-- TAB 3: SECRET MODE REGISTER -->
+    <section class="tab-pane" id="tab-secret-register">
+      <div class="glass-card" style="max-width: 850px; margin: 0 auto;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+          <h2 class="card-title" style="margin-bottom: 0;"><span>🕵️</span> Secret / Stealth Registration</h2>
+          <span style="font-size: 0.75rem; background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 0.2rem 0.6rem; border-radius: 9999px; font-weight: 600; border: 1px solid rgba(99, 102, 241, 0.4);">
+            &lt;mosaic-credential-input secret-mode&gt;
+          </span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Operates in <strong>Stealth Mode</strong>: The field mimics a standard HTML password input with bullets <code>••••••</code> (no visible token badges or action toolbars).
+          <br><br>
+          <strong style="color: var(--accent-cyan);">Shoulder-Surfing Immunity:</strong> Try typing <code>Pass</code>, then press Backspace <code>⌫</code> twice, then type <code>word</code>.
+          Visually, bullets disappear as if you deleted characters (an observer sees <code>Pword</code>). But secretly, the <strong>Backspace scalars (<code>U+0008</code>)</strong> are preserved in the binary wire payload!
+        </p>
+
+        <!-- Username -->
+        <div class="form-group">
+          <label class="form-label" for="secret-reg-username">Username</label>
+          <input type="text" id="secret-reg-username" class="input-text" placeholder="e.g. stealth_alice, shadow_bob" autocomplete="off">
+        </div>
+
+        <!-- Drop-in Web Component with secret-mode attribute -->
+        <div class="form-group">
+          <label class="form-label" for="secret-reg-cred-input">
+            Stealth Password Field
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-left: 0.5rem;">
+              (Bullets masked, Backspace captures as U+0008)
+            </span>
+          </label>
+          <mosaic-credential-input 
+            id="secret-reg-cred-input" 
+            name="credential" 
+            secret-mode
+            placeholder="Type password (e.g. Pass + 2× Backspace + word)...">
+          </mosaic-credential-input>
+        </div>
+
+        <!-- KDF Parameter Mode Selector -->
+        <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 1.25rem;">
+          <div>
+            <div style="font-size: 0.88rem; font-weight: 500; color: var(--text-main);">Argon2id Memory Hardness (§8.3)</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Stored into SQLite database verifier record</div>
+          </div>
+          <select id="secret-reg-kdf-mode" class="input-text" style="width: auto; padding: 0.4rem 0.75rem; font-size: 0.82rem; background: var(--bg-card); cursor: pointer;">
+            <option value="prod" selected>🔒 Production (64 MiB RAM, t=3, p=1)</option>
+            <option value="fast">⚡ Fast Dev (256 KiB RAM, t=1, p=1)</option>
+          </select>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="button" class="btn btn-primary" id="btn-submit-secret-register" style="width: 100%; justify-content: center; padding: 0.75rem; font-size: 0.95rem; margin-top: 0.5rem;">
+          Register Secret-Mode Verifier in SQLite
+        </button>
+
+        <div id="secret-reg-status" style="display: none;"></div>
+      </div>
+    </section>
+
+    <!-- TAB 4: SECRET MODE LOGIN -->
+    <section class="tab-pane" id="tab-secret-login">
+      <div class="glass-card" style="max-width: 850px; margin: 0 auto;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+          <h2 class="card-title" style="margin-bottom: 0;"><span>🕶️</span> Secret / Stealth Login</h2>
+          <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 0.2rem 0.6rem; border-radius: 9999px; font-weight: 600; border: 1px solid rgba(16, 185, 129, 0.4);">
+            &lt;mosaic-credential-input secret-mode&gt;
+          </span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Authenticate using the stealth password input. Even if someone shoulder-surfs your screen and writes down what they saw you type, they cannot log in without the exact secret Backspace/arrow sequence!
+        </p>
+
+        <!-- Username -->
+        <div class="form-group">
+          <label class="form-label" for="secret-login-username">Username</label>
+          <input type="text" id="secret-login-username" class="input-text" placeholder="Enter stealth username" autocomplete="off">
+        </div>
+
+        <!-- Drop-in Web Component with secret-mode attribute -->
+        <div class="form-group">
+          <label class="form-label" for="secret-login-cred-input">
+            Stealth Candidate Password
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-left: 0.5rem;">
+              (Standard bullets, captures Backspace &amp; arrows)
+            </span>
+          </label>
+          <mosaic-credential-input 
+            id="secret-login-cred-input" 
+            name="credential" 
+            secret-mode
+            placeholder="Type your stealth credential...">
+          </mosaic-credential-input>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="button" class="btn btn-primary" id="btn-submit-secret-login" style="width: 100%; justify-content: center; padding: 0.75rem; font-size: 0.95rem; margin-top: 0.5rem;">
+          Authenticate in Secret Mode
+        </button>
+
+        <div id="secret-login-status" style="display: none;"></div>
+      </div>
+    </section>
+
+    <!-- TAB 5: DATABASE INSPECTOR -->
     <section class="tab-pane" id="tab-database">
       <div class="glass-card">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">

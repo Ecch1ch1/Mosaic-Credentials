@@ -141,6 +141,116 @@ class DemoApp {
       }
     });
 
+    // Secret Mode Registration Form Submit
+    document.getElementById('btn-submit-secret-register').addEventListener('click', async () => {
+      const username = document.getElementById('secret-reg-username').value.trim();
+      const statusBox = document.getElementById('secret-reg-status');
+      const regInput = document.getElementById('secret-reg-cred-input');
+
+      if (!username) {
+        statusBox.className = 'status-alert status-alert-error';
+        statusBox.textContent = 'Please enter a username for secret registration.';
+        statusBox.style.display = 'block';
+        return;
+      }
+
+      statusBox.style.display = 'none';
+
+      try {
+        const b64Payload = regInput.getBase64();
+        const kdfMode = document.getElementById('secret-reg-kdf-mode')?.value || 'prod';
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: username,
+            credential_base64: b64Payload,
+            fast_mode: (kdfMode === 'fast')
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          const memStr = data.params && data.params.memory_cost_kib >= 65536 ? '64 MiB (OWASP Recommended)' : `${data.params?.memory_cost_kib || 256} KiB (Fast Testing)`;
+          statusBox.className = 'status-alert status-alert-success';
+          statusBox.innerHTML = `
+            <strong>✓ Stealth Registration Successful!</strong><br>
+            User <code>${data.username}</code> stored in SQLite via stealth password input.<br>
+            <strong>Argon2id KDF:</strong> <span class="size-chip">${memStr}</span> (t=${data.params?.iterations || 3}, p=${data.params?.parallelism || 1})<br>
+            <strong>Storage Footprint in DB:</strong> <span class="size-chip">${data.storage_size_bytes} bytes</span> (${data.element_count} elements)<br>
+            <details style="margin-top: 0.5rem; font-size: 0.78rem;">
+              <summary style="cursor: pointer; color: var(--accent-cyan);">View Stored VerifierRecord JSON (§9)</summary>
+              <pre style="background: rgba(0,0,0,0.5); padding: 0.5rem; border-radius: 4px; margin-top: 0.4rem; overflow: auto;">${JSON.stringify(data.stored_record, null, 2)}</pre>
+            </details>
+          `;
+          statusBox.style.display = 'block';
+
+          // Auto-fill login username
+          document.getElementById('secret-login-username').value = data.username;
+
+          // Reload DB list
+          this.loadDatabase();
+        } else {
+          statusBox.className = 'status-alert status-alert-error';
+          statusBox.textContent = `Registration Failed: ${data.error}`;
+          statusBox.style.display = 'block';
+        }
+      } catch (err) {
+        statusBox.className = 'status-alert status-alert-error';
+        statusBox.textContent = `Server error: ${err.message}`;
+        statusBox.style.display = 'block';
+      }
+    });
+
+    // Secret Mode Login Form Submit
+    document.getElementById('btn-submit-secret-login').addEventListener('click', async () => {
+      const username = document.getElementById('secret-login-username').value.trim();
+      const statusBox = document.getElementById('secret-login-status');
+      const loginInput = document.getElementById('secret-login-cred-input');
+
+      if (!username) {
+        statusBox.className = 'status-alert status-alert-error';
+        statusBox.textContent = 'Please enter a username.';
+        statusBox.style.display = 'block';
+        return;
+      }
+
+      statusBox.style.display = 'none';
+
+      try {
+        const b64Payload = loginInput.getBase64();
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: username,
+            credential_base64: b64Payload
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          statusBox.className = 'status-alert status-alert-success';
+          statusBox.innerHTML = `
+            <div style="font-size: 1.1rem; font-weight: 700;">🎉 Stealth Authentication Successful (VerifyResult::OK)</div>
+            <div style="font-size: 0.88rem; margin-top: 0.3rem;">Welcome back, <strong>${data.user.username}</strong>! User verified against stored Argon2id verifier in SQLite.</div>
+          `;
+          statusBox.style.display = 'block';
+        } else {
+          statusBox.className = 'status-alert status-alert-error';
+          statusBox.innerHTML = `
+            <div style="font-weight: 700;">✗ Authentication Denied (VerifyResult::DENIED)</div>
+            <div style="font-size: 0.85rem; margin-top: 0.2rem;">${data.message}</div>
+          `;
+          statusBox.style.display = 'block';
+        }
+      } catch (err) {
+        statusBox.className = 'status-alert status-alert-error';
+        statusBox.textContent = `Server error: ${err.message}`;
+        statusBox.style.display = 'block';
+      }
+    });
+
     // Reset DB button
     document.getElementById('btn-reset-db').addEventListener('click', async () => {
       if (confirm('Clear all users from the SQLite database?')) {
