@@ -58,7 +58,7 @@ impl CredentialBuilder {
     /// full string:
     ///
     /// ```
-    /// # use mosaic_core::prelude::*;
+    /// # use mosaic_credential_core::prelude::*;
     /// let policy = Policy::default_generous();
     /// let mut b1 = CredentialBuilder::new(policy.clone()).unwrap();
     /// b1.add_text("Pass").unwrap();

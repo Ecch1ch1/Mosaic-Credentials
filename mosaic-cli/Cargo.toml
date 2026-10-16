@@ -1,5 +1,5 @@
 [package]
-name = "mosaic-cli"
+name = "mosaic-credential-cli"
 description = "CLI tool for local development and diagnostics of Mosaic Credential"
 version.workspace = true
 edition.workspace = true

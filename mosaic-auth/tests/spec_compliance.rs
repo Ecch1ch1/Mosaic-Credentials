@@ -13,10 +13,10 @@ use mosaic_core::policy::Policy;
 use mosaic_core::prehash::streaming_prehash;
 use mosaic_core::types::Element;
 
-use mosaic_auth::enroll::enroll;
-use mosaic_auth::params::{AuthParams, ResourceLimits};
-use mosaic_auth::record::VerifierRecord;
-use mosaic_auth::verify::{verify, VerifyResult};
+use mosaic_credential_auth::enroll::enroll;
+use mosaic_credential_auth::params::{AuthParams, ResourceLimits};
+use mosaic_credential_auth::record::VerifierRecord;
+use mosaic_credential_auth::verify::{verify, VerifyResult};
 
 
 // =========================================================================

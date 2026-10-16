@@ -1,10 +1,13 @@
 [package]
-name = "mosaic-wasm"
+name = "mosaic-credential-wasm"
 description = "WebAssembly bindings for Mosaic Credential"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]

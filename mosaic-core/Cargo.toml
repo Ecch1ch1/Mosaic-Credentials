@@ -1,5 +1,5 @@
 [package]
-name = "mosaic-core"
+name = "mosaic-credential-core"
 description = "Data model, parser, canonical encoder, limits, and prehash for Mosaic Credential"
 version.workspace = true
 edition.workspace = true

@@ -19,8 +19,8 @@ documentation = "https://github.com/Ecch1ch1/Mosaic-Credentials/blob/main/SPECIF
 readme = "../README.md"
 
 [workspace.dependencies]
-mosaic-core = { path = "mosaic-core" }
-mosaic-auth = { path = "mosaic-auth" }
+mosaic-core = { package = "mosaic-credential-core", path = "mosaic-core" }
+mosaic-auth = { package = "mosaic-credential-auth", path = "mosaic-auth" }
 sha2 = "0.10"
 argon2 = "0.5"
 rand = "0.9"

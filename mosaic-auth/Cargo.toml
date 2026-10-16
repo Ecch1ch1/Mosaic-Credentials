@@ -1,5 +1,5 @@
 [package]
-name = "mosaic-auth"
+name = "mosaic-credential-auth"
 description = "Enrollment, verification, record validation, and upgrades for Mosaic Credential"
 version.workspace = true
 edition.workspace = true
