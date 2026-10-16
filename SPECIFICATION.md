@@ -1,9 +1,12 @@
 # Mosaic Credential
 ## Technical Design and Implementation Specification
 
-Version: 0.1 — Draft  
-Status: Proposed design; not independently audited  
-Working name: Mosaic Credential (MC)
+Version: 0.1.0 (Release)  
+Status: Reference Specification & Implementation v0.1.0  
+Working name: Mosaic Credential (MC)  
+Architect & Author: Ecch1ch1  
+Repository: https://github.com/Ecch1ch1/Mosaic-Credentials  
+License: MPL-2.0
 
 ## 1. Purpose
 
@@ -200,6 +203,35 @@ Adapters MUST test physical keyboards, mobile keyboards, IME composition, clipbo
 
 Modifier keys such as Shift are not automatically credential elements. The Delete key is not automatically U+007F. Additional mappings require explicit specification.
 
+### 5.5 Secret / Stealth Mode profile
+
+To preserve shoulder-surfing resistance and visual compatibility with legacy password fields, an adapter MAY implement a Secret / Stealth Mode (e.g., `<mosaic-credential-input secret-mode>`):
+
+1. **Visual Presentation**:
+   - Renders as a standard password field displaying bullet characters (`••••••`).
+   - Hides token lists, preview badges, drag-and-drop dropzones, and editing toolbars.
+   - To an onlooker or screen-recording software, the interaction appears identical to entering a traditional password.
+
+2. **Backspace Retention with Masking**:
+   - Every physical or virtual Backspace keypress appends `CHAR(U+0008)` to the canonical credential stream.
+   - Visually, the adapter deletes one bullet character from the display. This delivers standard visual feedback and misleads shoulder-surfers without mutating the canonical stream.
+
+3. **Reset Operation**:
+   - An explicit "Select-All" (`Ctrl+A` or `Cmd+A`) followed by `Backspace` or `Delete` MUST clear and reset the entire builder to empty.
+   - This provides the user with an intuitive way to start over without committing editing noise into the credential.
+
+4. **Private Use Area (PUA) Key Mappings**:
+   - Navigation and control keys that do not have standard printable Unicode representations are mapped into Unicode Plane 0 Private Use Area (`U+E000`–`U+F8FF`):
+     - `ArrowUp`: `CHAR(U+E010)`
+     - `ArrowDown`: `CHAR(U+E011)`
+     - `ArrowLeft`: `CHAR(U+E012)`
+     - `ArrowRight`: `CHAR(U+E013)`
+     - Function keys `F1` through `F12`: `CHAR(U+E021)` through `CHAR(U+E02C)`
+   - Modifier keys (Shift, Ctrl, Alt, Meta) MUST NOT be captured as independent elements.
+
+5. **Portability Invariant**:
+   - Secret Mode is strictly **Portable** (never OS-bound). The generated canonical stream and verifier MUST evaluate identically across Linux, Windows, macOS, Android, and iOS.
+
 ## 6. Canonical Binary Format: MC v1
 
 This is a proposed project format, not an existing standard.
@@ -373,7 +405,26 @@ OWASP lists an Argon2id minimum configuration of 19 MiB memory, two iterations, 
 
 The salt MUST come from an operating-system-backed cryptographically secure random source. Failure to obtain randomness MUST abort enrollment.
 
-### 8.4 Security interpretation
+### 8.4 Fail-Closed Resource Limits and Parameter Validation
+
+To defend verification nodes against algorithmic complexity attacks, denial-of-service, and parameter-downgrade attacks, implementations MUST enforce a fail-closed resource guard during verification:
+
+1. **Mandatory Explicit Parameters**:
+   - The PHC string stored in the verifier record MUST explicitly specify the parameters $m$ (memory cost in KiB), $t$ (time iterations), and $p$ (parallelism).
+   - If any parameter is omitted, non-numeric, or malformed, verification MUST fail closed immediately (`INVALID_VERIFIER`). Implementations MUST NOT fall back to permissive or silent default values.
+
+2. **Reference Resource Guard Bounds**:
+   The reference implementation enforces the following limits:
+   - Memory cost $m$: $19\,456 \le m \le 1\,048\,576\text{ KiB}$ ($19\text{ MiB}$ OWASP minimum to $1\text{ GiB}$ DoS ceiling).
+   - Time cost $t$: $1 \le t \le 10$ iterations.
+   - Parallelism $p$: $1 \le p \le 4$ lanes.
+   - Salt length: $\ge 16$ bytes.
+   - Hash output length: $\ge 32$ bytes.
+
+3. **Rejection Behavior**:
+   - Any stored verifier requiring resources exceeding these bounds MUST be rejected immediately without evaluating Argon2id (`RESOURCE_POLICY_REJECTED`).
+
+### 8.5 Security interpretation
 
 A large input does not automatically provide equally large cryptographic strength. The SHA-256 prehash has a fixed 256-bit output space. Input length, hash output size, collision resistance, and practical guessing resistance are different quantities.
 
@@ -493,36 +544,28 @@ Deployments MUST configure accepted authentication modes explicitly and MUST NOT
 
 ## 12. Language and Implementation Architecture
 
-### 12.1 Recommended production core: Rust
+### 12.1 Reference workspace layout
 
-Recommended project layout:
+The reference implementation provides the following ecosystem components:
 
 ```text
-mosaic-core       data model, parser, canonical encoder, limits, prehash
-mosaic-auth       enrollment, verification, record validation, upgrades
-mosaic-python     Python bindings
-mosaic-wasm       JavaScript/TypeScript interface
-mosaic-ffi        optional stable C ABI
-mosaic-editor     reference web editor
-mosaic-cli        local development and diagnostics
+mosaic-core       Rust core library: data model, parser, canonical streaming encoder, limits, prehash
+mosaic-auth       Rust auth library: enrollment, Argon2id verifier derivation, fail-closed resource guard
+mosaic-python     Python package (mosaic_credential): pure reference implementation and test runner
+mosaic-elements   Standard Web Component (<mosaic-credential-input>) with Visual and Secret Modes
+mosaic-demo-app   Full-stack interactive demonstration application (FastAPI + SQLite + Presets)
+mosaic-cli        CLI tool for local enrollment, verification, and diagnostics
+mosaic-wasm       Browser WebAssembly bindings (Rust/wasm-bindgen)
+test-vectors      Published canonical JSON test vectors for cross-language verification
 ```
 
-Rust is the recommended shared core for a project targeting native programs, Python, and browser integration. PyO3 supports Rust-based Python extension modules, while wasm-bindgen provides Rust/WebAssembly-to-JavaScript integration. [S3][S4]
+Rust serves as the high-assurance core for native programs and WebAssembly. PyO3 supports Rust-based Python extension modules, while wasm-bindgen provides Rust/WebAssembly-to-JavaScript integration. [S3][S4]
 
-C ABI compatibility requires a deliberately designed exported interface; it is not automatic exposure of Rust's internal types.
+### 12.2 Multi-Language and UI Ecosystem
 
-### 12.2 Python's role
-
-Python is suitable for:
-
-- A reference prototype.
-- Backend integration.
-- CLI tools.
-- Test-vector generation and compatibility tests.
-
-A Python implementation can use vetted native cryptographic libraries. It MUST NOT implement SHA-256 or Argon2 from scratch for production use.
-
-For the target of one reusable browser/native core, Rust plus wrappers is the preferred architecture. A Python prototype remains a valid first development step.
+- **Python (`mosaic-python`)**: Implements both the complete reference specification in Python for backend integration and serves as the runner for automated cross-validation against the canonical test vectors.
+- **Web Components (`mosaic-elements`)**: Implements the zero-dependency `<mosaic-credential-input>` custom element supporting visual composition, drag-and-drop, Secret/Stealth Mode, and direct DOM event dispatching.
+- **Demo Application (`mosaic-demo-app`)**: A live full-stack demonstration with SQLite inspection, interactive KDF cost parameter configuration, and instant credential presets.
 
 ### 12.3 Illustrative API
 
@@ -711,16 +754,16 @@ Large-payload tests MUST verify bounded working memory rather than only successf
 
 ## 17. Implementation Milestones
 
-1. Freeze data model and Backspace semantics.
-2. Implement canonical serializer, parser, and size accounting.
-3. Publish test vectors and cross-language tests.
-4. Implement streaming prehash.
-5. Integrate a maintained Argon2id implementation.
-6. Implement verifier record validation and migration.
-7. Build a CLI.
-8. Add Python bindings.
-9. Add WASM bindings and reference editor.
-10. Perform fuzzing, resource testing, and independent security review.
+- [x] **1. Freeze data model and Backspace semantics** — Completed in v0.1.0.
+- [x] **2. Implement canonical serializer, parser, and size accounting** — Implemented in `mosaic-core`.
+- [x] **3. Publish test vectors and cross-language tests** — Published in `test-vectors/published_test_vectors.json`.
+- [x] **4. Implement streaming prehash** — Implemented in `mosaic-core` with domain separation.
+- [x] **5. Integrate a maintained Argon2id implementation** — Implemented in `mosaic-auth` and `mosaic-python`.
+- [x] **6. Implement verifier record validation and fail-closed resource guard** — Implemented in `mosaic-auth` and `mosaic-python`.
+- [x] **7. Build a CLI** — Standalone binary in `mosaic-cli` and `python3 -m mosaic_credential.cli`.
+- [x] **8. Add Python reference implementation** — Packaged in `mosaic-python` with 100% test passing.
+- [x] **9. Add standard Web Component and demo application** — Shipped `<mosaic-credential-input>` with Secret Mode in `mosaic-elements` and interactive demo in `mosaic-demo-app`.
+- [x] **10. Perform fuzzing and boundary testing** — Panic-freedom parser fuzz tests running in CI across 1,600+ random inputs; independent third-party security review welcomed.
 
 ## 18. Release Acceptance Criteria
 

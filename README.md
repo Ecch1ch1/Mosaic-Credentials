@@ -166,7 +166,7 @@ For detailed schema examples and ORM models, see [INTEGRATION_GUIDE.md](INTEGRAT
 ## 📜 Specification & Compliance
 
 This implementation strictly adheres to the official specification:
-- [Technical Specification (v0.1)](mosaic-credential-technical-specification-en.md)
+- [Technical Specification (v0.1.0)](SPECIFICATION.md)
 - [Published Canonical Test Vectors](test-vectors/published_test_vectors.json)
 
 ---
