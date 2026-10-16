@@ -17,7 +17,7 @@ Conforms strictly to the **Mosaic Credential Technical Specification v0.1**.
 ## Installation
 
 ```bash
-pip install -e .
+pip install mosaic-credential
 ```
 
 ## Quickstart API (§12.3)

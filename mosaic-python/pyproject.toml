@@ -7,12 +7,32 @@ name = "mosaic-credential"
 version = "0.1.0"
 description = "Python bindings and reference implementation for Mosaic Credential v1"
 readme = "README.md"
-authors = [{ name = "Mosaic Credential Team" }]
+authors = [{ name = "Ecch1ch1", email = "ecch1ch1.ss@proton.me" }]
 license = { text = "MPL-2.0" }
 requires-python = ">=3.9"
 dependencies = [
     "argon2-cffi>=21.0.0",
 ]
+keywords = ["cryptography", "authentication", "credentials", "argon2", "security", "passwords", "zero-trust"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Security :: Cryptography",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/Ecch1ch1/Mosaic-Credentials"
+Documentation = "https://github.com/Ecch1ch1/Mosaic-Credentials/blob/main/SPECIFICATION.md"
+Repository = "https://github.com/Ecch1ch1/Mosaic-Credentials.git"
+"Bug Tracker" = "https://github.com/Ecch1ch1/Mosaic-Credentials/issues"
 
 [project.optional-dependencies]
 test = [

@@ -12,6 +12,11 @@ version = "0.1.0"
 edition = "2024"
 license = "MPL-2.0"
 rust-version = "1.85"
+authors = ["Ecch1ch1 <ecch1ch1.ss@proton.me>"]
+repository = "https://github.com/Ecch1ch1/Mosaic-Credentials"
+homepage = "https://github.com/Ecch1ch1/Mosaic-Credentials"
+documentation = "https://github.com/Ecch1ch1/Mosaic-Credentials/blob/main/SPECIFICATION.md"
+readme = "../README.md"
 
 [workspace.dependencies]
 mosaic-core = { path = "mosaic-core" }
