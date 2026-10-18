@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mosaic Credentials — Live Interactive Demo</title>
+  <meta name="description" content="Interactive demo for Mosaic Credentials and <mosaic-credential-input> Web Component. Zero-dependency multi-modal authentication secrets that defeat offline dictionary attacks.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090b10;
+      --card-bg: rgba(19, 23, 34, 0.85);
+      --card-border: rgba(99, 102, 241, 0.18);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.35);
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.18), transparent),
+        radial-gradient(circle at 80% 20%, rgba(56, 189, 248, 0.08), transparent 40%),
+        radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.05), transparent 40%);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      padding: 30px 16px 80px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* Header & Hero */
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+      padding: 20px 0;
+    }
+
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #a5b4fc;
+      margin-bottom: 16px;
+      letter-spacing: 0.03em;
+    }
+
+    header h1 {
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 70%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: clamp(14px, 2.2vw, 17px);
+      max-width: 680px;
+      margin: 0 auto 20px;
+    }
+
+    /* Badges row */
+    .badges-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .badge-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .badge-link:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tag-feature {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--cyan);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .hint-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Theme Selector */
+    .theme-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .theme-btn {
+      background: #1a1f2e;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .theme-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    /* Custom Themes Applied via CSS Variables */
+    .theme-cyberpunk mosaic-credential-input {
+      --mosaic-bg: #090d16;
+      --mosaic-border: #06b6d4;
+      --mosaic-focus: #f43f5e;
+      --mosaic-text: #38bdf8;
+      --mosaic-accent: #06b6d4;
+      --mosaic-radius: 4px;
+    }
+
+    .theme-minimal mosaic-credential-input {
+      --mosaic-bg: #f8fafc;
+      --mosaic-border: #cbd5e1;
+      --mosaic-focus: #0f172a;
+      --mosaic-text: #0f172a;
+      --mosaic-muted: #64748b;
+      --mosaic-accent: #0f172a;
+      --mosaic-radius: 6px;
+    }
+
+    /* Inspector Pre Block */
+    pre.code-block {
+      background: #06070a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--cyan);
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .inspector-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .metric-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    /* Quick Install */
+    .install-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #06070a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #a5b4fc;
+      margin-bottom: 12px;
+    }
+
+    .copy-btn {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .copy-btn:hover {
+      background: var(--accent);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    footer a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+
+  <!-- Load the Drop-In Web Component (v0.1.1) -->
+  <script src="mosaic-credential-input.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="pill-badge">✨ ZERO RUNTIME DEPENDENCIES • PURE WEB COMPONENT</div>
+      <h1>Mosaic Credentials</h1>
+      <p>Unbruteforceable multi-modal authentication secrets that fundamentally defeat offline dictionary attacks (Hashcat, RockYou) via structured framing, secret keystrokes, and binary BLOBs.</p>
+
+      <!-- Distribution Badges -->
+      <div class="badges-row">
+        <a class="badge-link" href="https://github.com/Ecch1ch1/Mosaic-Credentials" target="_blank" rel="noopener">
+          🐙 GitHub: Ecch1ch1/Mosaic-Credentials
+        </a>
+        <a class="badge-link" href="https://www.npmjs.com/package/@mosaic-credentials/elements" target="_blank" rel="noopener">
+          📦 npm: @mosaic-credentials/elements v0.1.1
+        </a>
+        <a class="badge-link" href="https://crates.io/crates/mosaic-credential-core" target="_blank" rel="noopener">
+          🦀 Crates.io: v0.1.1
+        </a>
+        <a class="badge-link" href="https://pypi.org/project/mosaic-credential/" target="_blank" rel="noopener">
+          🐍 PyPI: v0.1.1
+        </a>
+      </div>
+    </header>
+
+    <!-- SECTION 1: VISUAL RICH-TOKEN DEMO -->
+    <div class="card" id="themeContainer">
+      <div class="card-header">
+        <div class="card-title">
+          <span>🎨 Mode 1: Visual Multi-Modal Entry</span>
+        </div>
+        <span class="tag-feature">&lt;mosaic-credential-input&gt;</span>
+      </div>
+
+      <div class="theme-bar">
+        <span>Preview Theme:</span>
+        <button class="theme-btn active" onclick="switchTheme('default')">Midnight Indigo</button>
+        <button class="theme-btn" onclick="switchTheme('cyberpunk')">Neon Cyberpunk</button>
+        <button class="theme-btn" onclick="switchTheme('minimal')">Light Minimalist</button>
+      </div>
+
+      <div class="form-group">
+        <label for="visualInput">Interactive Credential Input</label>
+        <mosaic-credential-input 
+          id="visualInput" 
+          name="credential_visual" 
+          placeholder="Type secret text, press Backspace, use arrow keys (↑↓←→), or drop a photo...">
+        </mosaic-credential-input>
+        <p class="hint-text">
+          💡 Try typing a few letters, then press <strong>Backspace</strong> (inserts secret <code>U+0008</code> token), or drop a small file. Notice the integrated <strong>Quick-Clear (✕)</strong> reset button!
+        </p>
+      </div>
+    </div>
+
+    <!-- SECTION 2: SECRET / STEALTH MODE DEMO -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span>🕵️ Mode 2: Secret / Stealth Mode (Shoulder-Surf Resistant)</span>
+        </div>
+        <span class="tag-feature">secret-mode</span>
+      </div>
+
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+        Visually disguised as a standard password field (masked bullets with zero revealed tokens or file notes). If you make a mistake and hit <strong>Backspace</strong>, a bullet visibly disappears on screen, but the Backspace scalar <code>U+0008</code> is secretly recorded into the sequence! Anyone snooping over your shoulder will fail authentication.
+      </p>
+
+      <div class="form-group">
+        <label for="secretInput">Standard-Looking Password Field (Secret Mode Active)</label>
+        <mosaic-credential-input 
+          id="secretInput" 
+          secret-mode 
+          name="credential_secret" 
+          placeholder="Enter secret password (try Backspaces & arrows)...">
+        </mosaic-credential-input>
+        <p class="hint-text">
+          💡 Want a clean start? Click the subtle <strong>✕</strong> clear button or press <code>Ctrl+A</code> + <code>Backspace</code> to reset completely.
+        </p>
+      </div>
+    </div>
+
+    <!-- SECTION 3: LIVE WIRE FORMAT & PREHASH INSPECTOR -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span>🔬 Real-Time Cryptographic Inspector</span>
+        </div>
+        <span id="activeSourceBadge" class="tag-feature">Listening to: Visual Input</span>
+      </div>
+
+      <div class="inspector-metrics">
+        <div class="metric-card">
+          <div class="metric-label">Elements in Sequence</div>
+          <div class="metric-value" id="inspectCount">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Wire Payload Size</div>
+          <div class="metric-value" id="inspectSize">0 bytes</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Domain-Separated Prehash (SHA-256 via Web Crypto API):</label>
+        <pre class="code-block" id="inspectPrehash">Type in any input above to compute prehash...</pre>
+      </div>
+
+      <div class="form-group">
+        <label>Canonical MC v1 Wire Format (Base64):</label>
+        <pre class="code-block" id="inspectBase64">Input is currently empty.</pre>
+      </div>
+    </div>
+
+    <!-- SECTION 4: INTEGRATION QUICK-START -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span>⚡ 30-Second Integration</span>
+        </div>
+        <span class="tag-feature">Universal HTML</span>
+      </div>
+
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+        Install via npm or load from CDN without any build tools:
+      </p>
+
+      <div class="install-bar">
+        <span>npm install @mosaic-credentials/elements</span>
+        <button class="copy-btn" onclick="copyText('npm install @mosaic-credentials/elements')">Copy</button>
+      </div>
+
+      <pre class="code-block">&lt;!-- Drop directly into any HTML form --&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/@mosaic-credentials/elements/mosaic-credential-input.js"&gt;&lt;/script&gt;
+
+&lt;form action="/login" method="POST"&gt;
+  &lt;input type="text" name="username" placeholder="Username" required /&gt;
+  &lt;mosaic-credential-input name="credential" placeholder="Type secret..."&gt;&lt;/mosaic-credential-input&gt;
+  &lt;button type="submit"&gt;Sign In&lt;/button&gt;
+&lt;/form&gt;</pre>
+    </div>
+
+    <footer>
+      <p>
+        Mosaic Credentials is open-source software licensed under the <a href="https://github.com/Ecch1ch1/Mosaic-Credentials/blob/main/LICENSE" target="_blank" rel="noopener">Mozilla Public License 2.0 (MPL-2.0)</a>.
+      </p>
+      <p style="margin-top: 6px;">
+        Authored by <a href="https://github.com/Ecch1ch1" target="_blank" rel="noopener">Ecch1ch1</a>. Crafted with zero external dependencies.
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    const visualInput = document.getElementById('visualInput');
+    const secretInput = document.getElementById('secretInput');
+    const themeContainer = document.getElementById('themeContainer');
+
+    const inspectCount = document.getElementById('inspectCount');
+    const inspectSize = document.getElementById('inspectSize');
+    const inspectPrehash = document.getElementById('inspectPrehash');
+    const inspectBase64 = document.getElementById('inspectBase64');
+    const activeSourceBadge = document.getElementById('activeSourceBadge');
+
+    let activeComponent = visualInput;
+
+    async function updateInspector(comp, label) {
+      activeComponent = comp;
+      activeSourceBadge.textContent = `Listening to: ${label}`;
+
+      const count = comp.elements ? comp.elements.length : 0;
+      inspectCount.textContent = `${count} items`;
+
+      if (count > 0) {
+        const canonicalBytes = comp.encodeCanonical();
+        inspectSize.textContent = `${canonicalBytes.length} bytes`;
+
+        const b64 = comp.getBase64();
+        inspectBase64.textContent = b64;
+
+        const prehash = await comp.getPrehash();
+        const hex = Array.from(prehash).map(b => b.toString(16).padStart(2, '0')).join('');
+        inspectPrehash.textContent = hex;
+      } else {
+        inspectSize.textContent = '0 bytes';
+        inspectBase64.textContent = 'Input is currently empty.';
+        inspectPrehash.textContent = 'Type in any input above to compute prehash...';
+      }
+    }
+
+    visualInput.addEventListener('credential-change', () => updateInspector(visualInput, 'Visual Input'));
+    visualInput.addEventListener('focus', () => updateInspector(visualInput, 'Visual Input'));
+
+    secretInput.addEventListener('credential-change', () => updateInspector(secretInput, 'Secret Input'));
+    secretInput.addEventListener('focus', () => updateInspector(secretInput, 'Secret Input'));
+
+    function switchTheme(theme) {
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      themeContainer.className = 'card';
+      if (theme !== 'default') {
+        themeContainer.classList.add(`theme-${theme}`);
+      }
+    }
+
+    function copyText(str) {
+      navigator.clipboard.writeText(str).then(() => {
+        alert('Copied to clipboard: ' + str);
+      });
+    }
+  </script>
+</body>
+</html>
