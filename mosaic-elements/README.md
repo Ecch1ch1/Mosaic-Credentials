@@ -1,5 +1,8 @@
 # @mosaic-credentials/elements
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Try%20it%20Online-6366f1?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ecch1ch1.github.io/Mosaic-Credentials/)
+[![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success)](https://www.npmjs.com/package/@mosaic-credentials/elements)
+
 Drop-in Web Component (`<mosaic-credential-input>`) for creating unbruteforceable, multi-modal authentication secrets directly in web applications.
 
 Works seamlessly in **plain HTML, React, Vue, Svelte, Angular**, or any web framework.

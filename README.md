@@ -2,13 +2,14 @@
 
 > **Next-generation structured authentication secrets combining arbitrary Unicode scalars, raw binary BLOBs, and keystroke secrets into brute-force-proof credentials.**
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Try%20it%20Online-6366f1?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ecch1ch1.github.io/Mosaic-Credentials/)
+
 [![CI](https://github.com/Ecch1ch1/Mosaic-Credentials/actions/workflows/ci.yml/badge.svg)](https://github.com/Ecch1ch1/Mosaic-Credentials/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@mosaic-credentials/elements?color=cb3837&logo=npm)](https://www.npmjs.com/package/@mosaic-credentials/elements)
+[![crates.io](https://img.shields.io/crates/v/mosaic-credential-core?color=fc8c03&logo=rust)](https://crates.io/crates/mosaic-credential-core)
+[![PyPI version](https://img.shields.io/pypi/v/mosaic-credential?color=3775a9&logo=pypi)](https://pypi.org/project/mosaic-credential/)
+[![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success)](mosaic-elements/)
 [![License](https://img.shields.io/badge/License-MPL_2.0-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange?logo=rust)](mosaic-core/)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)](mosaic-python/)
-[![WebAssembly](https://img.shields.io/badge/WASM-Compatible-purple?logo=webassembly)](mosaic-wasm/)
-[![KDF](https://img.shields.io/badge/KDF-Argon2id-brightgreen)](https://en.wikipedia.org/wiki/Argon2)
-[![Test Vectors](https://img.shields.io/badge/Vectors-100%25%20Verified-success)](test-vectors/published_test_vectors.json)
 
 ---
 
