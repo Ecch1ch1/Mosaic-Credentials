@@ -1,6 +1,6 @@
 {
   "name": "@mosaic-credentials/elements",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Drop-in Web Component <mosaic-credential-input> for unbruteforceable multi-modal authentication secrets",
   "main": "mosaic-credential-input.js",
   "module": "mosaic-credential-input.js",

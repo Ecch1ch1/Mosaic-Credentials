@@ -51,8 +51,9 @@ When submitted, the form automatically contains the canonical Base64-encoded bin
 
 ---
 
-## 🎨 Styling with CSS Variables
+## 🎨 Styling & Theming
 
+### Option A: CSS Custom Properties (High-level)
 The component uses Shadow DOM for isolation, but provides clean CSS custom properties for styling:
 
 ```css
@@ -67,6 +68,71 @@ mosaic-credential-input {
 }
 ```
 
+### Option B: CSS Shadow Parts (`::part()`) for Complete Customization
+For 100% fine-grained control over internal DOM elements without modifying the library, target exposed Shadow Parts directly from your external stylesheet:
+
+```css
+/* Style the entire wrapper container */
+mosaic-credential-input::part(container) {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* Style the text/token input row */
+mosaic-credential-input::part(input-row) {
+  padding: 10px 14px;
+}
+
+/* Style individual token badges */
+mosaic-credential-input::part(token) {
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+/* Style the native text input */
+mosaic-credential-input::part(input) {
+  font-family: inherit;
+}
+
+/* Style the quick clear (✕) button */
+mosaic-credential-input::part(clear-btn) {
+  color: #f87171;
+}
+
+/* Style the file exactness / provenance notice */
+mosaic-credential-input::part(file-note) {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Style the toolbar and indicators */
+mosaic-credential-input::part(toolbar) {
+  background: transparent;
+}
+mosaic-credential-input::part(status) {
+  font-size: 11px;
+}
+```
+
+---
+
+## ✕ Quick Clear Button & Reset Peace of Mind
+
+Because Backspace inserts a secret keystroke scalar (`U+0008`) rather than deleting previous elements, `<mosaic-credential-input>` provides an integrated **Quick-Clear button (`✕`)** inside the input row:
+* Automatically becomes visible as soon as any content or text is entered.
+* Available in both **Visual Mode** and **Secret Mode**.
+* Clicking `✕` resets all internal elements, empties the input field, and fires change events so users are 100% confident their sequence has been completely wiped.
+* In Secret Mode, pressing `Ctrl+A` / `Cmd+A` followed by Backspace also triggers a full sequence reset.
+
+---
+
+## 📎 File Exactness & Provenance Notice
+
+In Visual Mode, the component displays an informative notice:
+> ℹ️ **File Exactness:** Files must be exact byte-for-byte originals. Chat apps (WhatsApp, Messenger) recompress media and strip metadata, which alters the credential.
+
+This helps prevent accidental login failures caused by photo recompression or cloud sync stripping EXIF metadata. In **Secret Mode**, this notice is automatically and completely hidden to preserve full stealth.
+
 ---
 
 ## 🕵️ Secret / Stealth Mode
@@ -79,6 +145,7 @@ When developers want a credential field that visually looks and behaves like a t
 
 * **Plausible Deniability & Shoulder-Surf Resistance**: Observers see only standard password bullets `••••••`.
 * **Secret Backspaces (`U+0008`)**: If a user hits Backspace, a bullet visually disappears from the screen, but the Backspace scalar is secretly preserved in the framed sequence. Anyone observing over the user's shoulder will fail authentication.
+* **Integrated Clear (`✕`)**: A subtle reset button allows clearing the input without leaking sequence length.
 * **Strictly Portable**: Secret mode automatically enforces portable Canonical PUA keys and disables OS-specific binding.
 * **Select-All Reset**: Pressing `Ctrl+A` / `Cmd+A` followed by Backspace completely clears the credential sequence.
 

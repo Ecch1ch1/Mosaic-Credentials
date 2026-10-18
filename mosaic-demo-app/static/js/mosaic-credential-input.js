@@ -248,36 +248,102 @@
         font-size: 15px;
         letter-spacing: 0.12em;
       }
+
+      .quick-clear-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+        padding: 4px 6px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+        opacity: 0;
+        pointer-events: none;
+        user-select: none;
+        flex-shrink: 0;
+      }
+
+      .quick-clear-btn.visible {
+        opacity: 0.6;
+        pointer-events: auto;
+      }
+
+      .quick-clear-btn:hover {
+        opacity: 1;
+        color: #ef4444;
+        background: rgba(239, 68, 68, 0.15);
+      }
+
+      :host([secret-mode]) .quick-clear-btn,
+      :host([stealth]) .quick-clear-btn {
+        margin-left: auto;
+        font-size: 15px;
+      }
+
+      .file-exactness-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--text-muted);
+        background: rgba(56, 189, 248, 0.05);
+        border: 1px solid rgba(56, 189, 248, 0.14);
+        border-radius: 6px;
+        padding: 5px 8px;
+        margin-top: 2px;
+        user-select: none;
+      }
+
+      .file-exactness-note strong {
+        color: var(--text-color);
+      }
+
+      :host([secret-mode]) .file-exactness-note,
+      :host([stealth]) .file-exactness-note {
+        display: none !important;
+      }
     </style>
 
-    <div class="mosaic-container" id="container">
-      <div class="input-row" id="inputRow">
-        <div class="tokens-list" id="tokensList"></div>
-        <input type="text" class="text-entry" id="textEntry" autocomplete="off" spellcheck="false" />
+    <div class="mosaic-container" id="container" part="container">
+      <div class="input-row" id="inputRow" part="input-row">
+        <div class="tokens-list" id="tokensList" part="tokens-list"></div>
+        <input type="text" class="text-entry" id="textEntry" autocomplete="off" spellcheck="false" part="input" />
+        <button type="button" class="quick-clear-btn" id="quickClearBtn" part="clear-btn" title="Clear all elements (Reset)" aria-label="Clear all elements">✕</button>
       </div>
 
-      <div class="toolbar">
-        <div class="actions-left">
-          <button type="button" class="tool-btn" id="bsBtn" title="Insert Secret Backspace token U+0008">
+      <div class="file-exactness-note" id="fileNote" part="file-note">
+        <span>ℹ️</span>
+        <span><strong>File Exactness:</strong> Files must be exact byte-for-byte originals. Chat apps (WhatsApp, Messenger) recompress media and strip metadata, which alters the credential.</span>
+      </div>
+
+      <div class="toolbar" part="toolbar">
+        <div class="actions-left" part="actions-left">
+          <button type="button" class="tool-btn" id="bsBtn" part="tool-btn" title="Insert Secret Backspace token U+0008">
             ⌫ +Backspace
           </button>
-          <button type="button" class="tool-btn" id="arrowsBtn" title="Insert Directional Arrow Token">
+          <button type="button" class="tool-btn" id="arrowsBtn" part="tool-btn" title="Insert Directional Arrow Token">
             🎮 ⬆⬇⬅➡
           </button>
-          <button type="button" class="tool-btn" id="attachBtn" title="Attach file or binary BLOB">
+          <button type="button" class="tool-btn" id="attachBtn" part="tool-btn" title="Attach file or binary BLOB">
             📎 +File
           </button>
-          <button type="button" class="tool-btn" id="modeBtn" title="Toggle between Standard Portable Mode and Device-Bound Mode">
+          <button type="button" class="tool-btn" id="modeBtn" part="tool-btn" title="Toggle between Standard Portable Mode and Device-Bound Mode">
             🌐 Mode: Portable
           </button>
-          <button type="button" class="tool-btn" id="viewToggleBtn" title="Toggle Secret Visibility">
+          <button type="button" class="tool-btn" id="viewToggleBtn" part="tool-btn" title="Toggle Secret Visibility">
             👁️ Peek
           </button>
         </div>
 
-        <div class="actions-right">
-          <span class="entropy-indicator entropy-empty" id="entropy">0 elements</span>
-          <button type="button" class="tool-btn tool-btn-danger" id="clearBtn" title="Clear all elements">
+        <div class="actions-right" part="actions-right">
+          <span class="entropy-indicator entropy-empty" id="entropy" part="status">0 elements</span>
+          <button type="button" class="tool-btn tool-btn-danger" id="clearBtn" part="toolbar-clear-btn" title="Clear all elements">
             ✕ Clear
           </button>
         </div>
@@ -307,6 +373,8 @@
       this.$inputRow = this.shadowRoot.getElementById('inputRow');
       this.$tokensList = this.shadowRoot.getElementById('tokensList');
       this.$textEntry = this.shadowRoot.getElementById('textEntry');
+      this.$quickClearBtn = this.shadowRoot.getElementById('quickClearBtn');
+      this.$fileNote = this.shadowRoot.getElementById('fileNote');
       this.$bsBtn = this.shadowRoot.getElementById('bsBtn');
       this.$arrowsBtn = this.shadowRoot.getElementById('arrowsBtn');
       this.$attachBtn = this.shadowRoot.getElementById('attachBtn');
@@ -351,6 +419,11 @@
 
       // Event listeners
       this.$inputRow.addEventListener('click', () => this.$textEntry.focus());
+      this.$quickClearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.clear();
+        this.$textEntry.focus();
+      });
       this.$textEntry.addEventListener('keydown', this._onKeyDown);
       this.$textEntry.addEventListener('input', this._onInput);
       this.$textEntry.addEventListener('paste', (e) => {
@@ -389,6 +462,10 @@
       } else {
         this.$textEntry.type = 'text';
       }
+      if (this.$fileNote) {
+        this.$fileNote.style.display = isSecret ? 'none' : 'flex';
+      }
+      this._updateClearBtnVisibility();
     }
 
     get secretMode() {
@@ -674,6 +751,7 @@
         }
         this.$textEntry.value = '';
       }
+      this._updateClearBtnVisibility();
     }
 
     _flushTextEntry() {
@@ -721,12 +799,20 @@
       }
     }
 
+    _updateClearBtnVisibility() {
+      if (this.$quickClearBtn) {
+        const hasContent = this.elements.length > 0 || (this.$textEntry && this.$textEntry.value.length > 0);
+        this.$quickClearBtn.classList.toggle('visible', hasContent);
+      }
+    }
+
     _renderTokens() {
       this.$tokensList.innerHTML = '';
 
       this.elements.forEach((el, index) => {
         const badge = document.createElement('span');
         badge.className = 'token-badge';
+        badge.setAttribute('part', 'token');
 
         if (el.type === 'CHAR') {
           if (el.value === 0x0008) {
@@ -782,6 +868,8 @@
         else if (hasBs) badgeDesc += ' (⌫ Keystroke Protected)';
         this.$entropy.textContent = badgeDesc;
       }
+
+      this._updateClearBtnVisibility();
     }
 
     _updateFormValue() {
@@ -790,8 +878,19 @@
         this._internals.setFormValue(base64Value);
       }
 
-      // Also dispatch custom change event
+      this._updateClearBtnVisibility();
+
+      // Dispatch change event
       this.dispatchEvent(new CustomEvent('change', {
+        detail: {
+          elementCount: this.elements.length,
+          base64: base64Value
+        },
+        bubbles: true
+      }));
+
+      // Dispatch custom credential-change event
+      this.dispatchEvent(new CustomEvent('credential-change', {
         detail: {
           elementCount: this.elements.length,
           base64: base64Value
