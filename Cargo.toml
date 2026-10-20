@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 license = "MPL-2.0"
 rust-version = "1.85"
@@ -19,8 +19,8 @@ documentation = "https://github.com/Ecch1ch1/Mosaic-Credentials/blob/main/SPECIF
 readme = "../README.md"
 
 [workspace.dependencies]
-mosaic-core = { package = "mosaic-credential-core", path = "mosaic-core", version = "0.1.1" }
-mosaic-auth = { package = "mosaic-credential-auth", path = "mosaic-auth", version = "0.1.1" }
+mosaic-core = { package = "mosaic-credential-core", path = "mosaic-core", version = "0.2.0" }
+mosaic-auth = { package = "mosaic-credential-auth", path = "mosaic-auth", version = "0.2.0" }
 sha2 = "0.10"
 argon2 = "0.5"
 rand = "0.9"

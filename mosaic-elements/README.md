@@ -150,7 +150,27 @@ When developers want a credential field that visually looks and behaves like a t
 * **Secret Backspaces (`U+0008`)**: If a user hits Backspace, a bullet visually disappears from the screen, but the Backspace scalar is secretly preserved in the framed sequence. Anyone observing over the user's shoulder will fail authentication.
 * **Integrated Clear (`✕`)**: A subtle reset button allows clearing the input without leaking sequence length.
 * **Strictly Portable**: Secret mode automatically enforces portable Canonical PUA keys and disables OS-specific binding.
+* **Capsule Lockdown**: In Secret Mode, physical `.mosaic` capsule buttons and file notices are strictly hidden to ensure zero UI leakage.
 * **Select-All Reset**: Pressing `Ctrl+A` / `Cmd+A` followed by Backspace completely clears the credential sequence.
+
+---
+
+## 🗝️ Encrypted `.mosaic` Physical Keyfile Capsules
+
+In Visual Mode, `<mosaic-credential-input>` supports exporting and importing **Encrypted Physical Keyfile Capsules (`.mosaic`)** directly from the browser without any server or cloud dependencies:
+
+* **Export**: Clicking **"💾 .mosaic Key"** exports the exact multi-modal sequence (including large binary files and interleaved keystrokes) into an encrypted `.mosaic` file.
+* **AES-256-GCM + PBKDF2**:
+  * **Envelope Format**: `MOSAIC01` (8-byte header) || 16-byte CSPRNG Salt || 12-byte IV || AES-256-GCM Ciphertext + 16-byte Tag.
+  * **Key Derivation**: PBKDF2-HMAC-SHA256 with **200,000 iterations** for extreme resistance against offline brute-force attacks.
+* **Tamper Defense**: AES-256-GCM authentication tags guarantee that any modified byte or wrong PIN is immediately rejected.
+* **Algorithmic PIN/Passphrase Validator**: Enforces a minimum length of 8 characters, Shannon entropy threshold, and rejects trivial repetition (`00000000`) and linear sequences (`12345678`).
+* **Direct Import**: Dropping or selecting a `.mosaic` capsule file automatically opens a modal requesting the master PIN/passphrase, decrypts the contents in memory, and populates the field.
+
+To explicitly toggle capsule functionality:
+```html
+<mosaic-credential-input allow-capsule="true"></mosaic-credential-input>
+```
 
 ---
 
@@ -176,6 +196,24 @@ const base64Payload = input.getBase64();
 // Compute domain-separated SHA-256 prehash
 const prehashBytes = await input.getPrehash();
 
+// --- .mosaic Keyfile Capsule Cryptography ---
+
+// Export current credential to an encrypted .mosaic capsule (Uint8Array)
+const capsuleBytes = await input.exportCapsule("MyMasterPin#2026");
+
+// Decrypt and load a .mosaic capsule into the input
+await input.importCapsule(capsuleBytes, "MyMasterPin#2026");
+
+// Validate master PIN strength algorithmically
+const validation = input.validatePassphrase("12345678");
+// returns: { valid: false, reason: "Passphrase contains a trivial sequence..." }
+
+// Set custom passphrase validation hook
+input.setPassphraseValidator((pin) => {
+  if (pin.length < 10) return { valid: false, reason: "PIN must be at least 10 chars" };
+  return { valid: true };
+});
+
 // Clear input
 input.clear();
 ```
@@ -185,3 +223,4 @@ input.clear();
 ## 📄 License
 
 Licensed under the [Mozilla Public License 2.0 (MPL-2.0)](../LICENSE).
+
