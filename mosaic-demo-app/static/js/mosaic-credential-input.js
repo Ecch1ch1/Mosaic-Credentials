@@ -20,8 +20,229 @@
   const TAG_END = 0xff;
   const PREHASH_DOMAIN_PREFIX = new TextEncoder().encode("MOSAIC-CREDENTIAL/PREHASH/V1\0");
 
-  const template = document.createElement('template');
-  template.innerHTML = `
+  // Capsule Keyfile Constants (.mosaic)
+  const CAPSULE_MAGIC = new Uint8Array([0x4D, 0x4F, 0x53, 0x41, 0x49, 0x43, 0x30, 0x31]); // "MOSAIC01" (8 bytes)
+  const CAPSULE_ITERATIONS = 200000;
+
+  function validateCapsulePassphrase(passphrase, customValidator = null) {
+    if (!passphrase || typeof passphrase !== 'string') {
+      return { valid: false, error: 'Passphrase cannot be empty.' };
+    }
+    if (passphrase.length < 8) {
+      return { valid: false, error: 'Passphrase must be at least 8 characters long.' };
+    }
+    if (/^[0-9]+$/.test(passphrase) && passphrase.length < 10) {
+      return { valid: false, error: 'Numeric-only PINs must be at least 10 digits.' };
+    }
+
+    // 1. Check unique character entropy (rejects e.g. aaaaaaaa, abababab, 12121212)
+    const uniqueChars = new Set(passphrase).size;
+    if (uniqueChars < 4) {
+      return { valid: false, error: 'Passphrase has too few unique characters (low entropy).' };
+    }
+
+    // 2. Check repeated chunk sequences (e.g. abcabcabc, 123123123)
+    if (/(.{2,})\1{2,}/.test(passphrase)) {
+      return { valid: false, error: 'Passphrase contains repeated pattern sequences.' };
+    }
+
+    // 3. Algorithmic sequential run detector (catches 4+ sequential ASCII runs like 1234, abcd, 9876, dcba)
+    const lower = passphrase.toLowerCase();
+    let seqRun = 1;
+    let revRun = 1;
+    for (let i = 1; i < lower.length; i++) {
+      const diff = lower.charCodeAt(i) - lower.charCodeAt(i - 1);
+      if (diff === 1) {
+        seqRun++;
+        if (seqRun >= 4) return { valid: false, error: 'Passphrase contains sequential character runs (e.g. 1234, abcd).' };
+      } else {
+        seqRun = 1;
+      }
+      if (diff === -1) {
+        revRun++;
+        if (revRun >= 4) return { valid: false, error: 'Passphrase contains reverse sequential runs (e.g. 4321, dcba).' };
+      } else {
+        revRun = 1;
+      }
+    }
+
+    // 4. Common root words & keyboard walk submatches
+    const predictableRoots = ['password', 'qwerty', 'asdfgh', 'zxcvbn', 'admin', 'iloveyou', 'mosaicpass', 'masterkey'];
+    for (const root of predictableRoots) {
+      if (lower.includes(root)) {
+        return { valid: false, error: 'Passphrase contains predictable common pattern or word: "' + root + '"' };
+      }
+    }
+
+    // 5. Pluggable custom validator hook (e.g. enterprise policy or zxcvbn)
+    if (typeof customValidator === 'function') {
+      const customRes = customValidator(passphrase);
+      if (customRes && customRes.valid === false) {
+        return customRes;
+      }
+    }
+
+    return { valid: true, error: null };
+  }
+
+  async function encryptCapsule(canonicalBytes, elementsMeta, passphrase) {
+    const cryptoObj = (typeof crypto !== 'undefined' && crypto.subtle) ? crypto : (globalThis.crypto || null);
+    if (!cryptoObj || !cryptoObj.subtle) {
+      throw new Error('Web Crypto API is not available.');
+    }
+    const salt = cryptoObj.getRandomValues(new Uint8Array(32));
+    const iv = cryptoObj.getRandomValues(new Uint8Array(12));
+
+    const passKey = await cryptoObj.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(passphrase),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+
+    const aesKey = await cryptoObj.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt,
+        iterations: CAPSULE_ITERATIONS,
+        hash: 'SHA-256'
+      },
+      passKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt']
+    );
+
+    let binaryCanonical = '';
+    for (let i = 0; i < canonicalBytes.length; i++) binaryCanonical += String.fromCharCode(canonicalBytes[i]);
+    const canonicalBase64 = btoa(binaryCanonical);
+
+    const envelope = {
+      format: 'MOSAIC-CAPSULE-v1',
+      version: 1,
+      created: new Date().toISOString(),
+      canonical: canonicalBase64,
+      elements: elementsMeta.map(el => {
+        if (el.type === 'BLOB') {
+          let b = '';
+          for (let i = 0; i < el.value.length; i++) b += String.fromCharCode(el.value[i]);
+          return { type: 'BLOB', name: el.name, base64: btoa(b) };
+        }
+        return el;
+      })
+    };
+
+    const plaintext = new TextEncoder().encode(JSON.stringify(envelope));
+    const ciphertext = await cryptoObj.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      aesKey,
+      plaintext
+    );
+
+    const result = new Uint8Array(8 + 32 + 12 + 4 + ciphertext.byteLength);
+    result.set(CAPSULE_MAGIC, 0);
+    result.set(salt, 8);
+    result.set(iv, 40);
+    new DataView(result.buffer, result.byteOffset, result.byteLength).setUint32(52, CAPSULE_ITERATIONS, false);
+    result.set(new Uint8Array(ciphertext), 56);
+    return result;
+  }
+
+  async function decryptCapsule(capsuleBytes, passphrase) {
+    const cryptoObj = (typeof crypto !== 'undefined' && crypto.subtle) ? crypto : (globalThis.crypto || null);
+    if (!cryptoObj || !cryptoObj.subtle) {
+      throw new Error('Web Crypto API is not available.');
+    }
+    if (capsuleBytes.length < 8 + 32 + 12 + 4 + 16) {
+      throw new Error('Capsule file too short or corrupted.');
+    }
+    for (let i = 0; i < 8; i++) {
+      if (capsuleBytes[i] !== CAPSULE_MAGIC[i]) {
+        throw new Error('Invalid capsule magic header.');
+      }
+    }
+    const salt = capsuleBytes.slice(8, 40);
+    const iv = capsuleBytes.slice(40, 52);
+    const iterations = new DataView(capsuleBytes.buffer, capsuleBytes.byteOffset, capsuleBytes.byteLength).getUint32(52, false);
+    const ciphertext = capsuleBytes.slice(56);
+
+    const passKey = await cryptoObj.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(passphrase),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+
+    const aesKey = await cryptoObj.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt,
+        iterations,
+        hash: 'SHA-256'
+      },
+      passKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+
+    const decryptedPlaintext = await cryptoObj.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      aesKey,
+      ciphertext
+    );
+
+    const envelope = JSON.parse(new TextDecoder().decode(decryptedPlaintext));
+    return envelope;
+  }
+
+  function parseCanonicalStream(buffer) {
+    if (buffer.length < 9) throw new Error('Credential stream too short');
+    for (let i = 0; i < 4; i++) {
+      if (buffer[i] !== MAGIC[i]) throw new Error('Invalid magic bytes');
+    }
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    const version = view.getUint16(4, false);
+    const profile = view.getUint16(6, false);
+    if (version !== 1 || profile !== 1) throw new Error('Unsupported version or profile');
+
+    let offset = 8;
+    const elements = [];
+    while (offset < buffer.length) {
+      const tag = buffer[offset++];
+      if (tag === TAG_END) break;
+      if (tag === TAG_CHAR) {
+        if (offset + 4 > buffer.length) throw new Error('Truncated CHAR element');
+        const scalar = view.getUint32(offset, false);
+        offset += 4;
+        let meta = undefined;
+        if (scalar >= 0xE010 && scalar <= 0xE013) {
+          const arrowMap = { 0xE010: 'ArrowUp', 0xE011: 'ArrowDown', 0xE012: 'ArrowLeft', 0xE013: 'ArrowRight' };
+          meta = arrowMap[scalar];
+        } else if (scalar >= 0xE021 && scalar <= 0xE02C) {
+          meta = 'F' + (scalar - 0xE020);
+        }
+        elements.push({ type: 'CHAR', value: scalar, meta });
+      } else if (tag === TAG_BLOB) {
+        if (offset + 8 > buffer.length) throw new Error('Truncated BLOB length');
+        const len = Number(view.getBigUint64(offset, false));
+        offset += 8;
+        if (offset + len > buffer.length) throw new Error('Truncated BLOB payload');
+        const blobBytes = buffer.slice(offset, offset + len);
+        offset += len;
+        elements.push({ type: 'BLOB', value: blobBytes, name: 'attached-data.bin' });
+      } else {
+        throw new Error('Unknown tag in stream: ' + tag);
+      }
+    }
+    return elements;
+  }
+
+  const template = typeof document !== 'undefined' ? document.createElement('template') : null;
+  if (template) {
+    template.innerHTML = `
     <style>
       :host {
         display: block;
@@ -304,8 +525,130 @@
         color: var(--text-color);
       }
 
-      :host([secret-mode]) .file-exactness-note,
-      :host([stealth]) .file-exactness-note {
+      .capsule-drawer {
+        display: none;
+        background: rgba(15, 23, 42, 0.96);
+        border: 1px solid var(--border-focus);
+        border-radius: var(--radius);
+        padding: 12px;
+        margin-top: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(12px);
+      }
+
+      .capsule-drawer.open {
+        display: block;
+      }
+
+      .capsule-drawer-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      .capsule-drawer-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-color);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .capsule-close-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 14px;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+
+      .capsule-close-btn:hover {
+        color: #ef4444;
+      }
+
+      .capsule-field {
+        margin-bottom: 8px;
+      }
+
+      .capsule-label {
+        display: block;
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+        font-weight: 600;
+      }
+
+      .capsule-input {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        outline: none;
+        font-family: inherit;
+      }
+
+      .capsule-input:focus {
+        border-color: var(--border-focus);
+      }
+
+      .capsule-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 10px;
+      }
+
+      .capsule-btn-primary {
+        background: var(--accent-color);
+        color: white;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+
+      .capsule-btn-primary:hover {
+        opacity: 0.9;
+      }
+
+      .capsule-btn-cancel {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid var(--border-color);
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .capsule-error {
+        font-size: 11px;
+        color: #ef4444;
+        margin-top: 4px;
+        display: none;
+      }
+
+      .capsule-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.4;
+        margin-bottom: 10px;
+      }
+
+      :host([secret-mode]) #capsuleBtn,
+      :host([stealth]) #capsuleBtn,
+      :host([secret-mode]) .capsule-drawer,
+      :host([stealth]) .capsule-drawer {
         display: none !important;
       }
     </style>
@@ -333,6 +676,9 @@
           <button type="button" class="tool-btn" id="attachBtn" part="tool-btn" title="Attach file or binary BLOB">
             📎 +File
           </button>
+          <button type="button" class="tool-btn" id="capsuleBtn" part="capsule-btn" title="Export or manage encrypted .mosaic keyfile">
+            💾 .mosaic Key
+          </button>
           <button type="button" class="tool-btn" id="modeBtn" part="tool-btn" title="Toggle between Standard Portable Mode and Device-Bound Mode">
             🌐 Mode: Portable
           </button>
@@ -348,15 +694,28 @@
           </button>
         </div>
       </div>
+
+      <div class="capsule-drawer" id="capsuleDrawer" part="capsule-drawer">
+        <div class="capsule-drawer-header">
+          <span class="capsule-drawer-title" id="capsuleDrawerTitle">💾 Export .mosaic Keyfile</span>
+          <button type="button" class="capsule-close-btn" id="capsuleCloseBtn">✕</button>
+        </div>
+        <div id="capsuleDrawerBody"></div>
+      </div>
+
       <input type="file" id="fileInput" multiple />
     </div>
-  `;
+    `;
+  }
 
-  class MosaicCredentialInput extends HTMLElement {
+  const HTMLElementBase = typeof HTMLElement !== 'undefined' ? HTMLElement : class {};
+
+  class MosaicCredentialInput extends HTMLElementBase {
     static formAssociated = true;
 
     constructor() {
       super();
+      if (typeof HTMLElement === 'undefined') return;
       this._internals = this.attachInternals ? this.attachInternals() : null;
       this.attachShadow({ mode: 'open' });
       this.shadowRoot.appendChild(template.content.cloneNode(true));
@@ -383,6 +742,11 @@
       this.$viewToggleBtn = this.shadowRoot.getElementById('viewToggleBtn');
       this.$clearBtn = this.shadowRoot.getElementById('clearBtn');
       this.$entropy = this.shadowRoot.getElementById('entropy');
+      this.$capsuleBtn = this.shadowRoot.getElementById('capsuleBtn');
+      this.$capsuleDrawer = this.shadowRoot.getElementById('capsuleDrawer');
+      this.$capsuleDrawerTitle = this.shadowRoot.getElementById('capsuleDrawerTitle');
+      this.$capsuleDrawerBody = this.shadowRoot.getElementById('capsuleDrawerBody');
+      this.$capsuleCloseBtn = this.shadowRoot.getElementById('capsuleCloseBtn');
 
       // Bind methods
       this._onKeyDown = this._onKeyDown.bind(this);
@@ -444,6 +808,12 @@
       this.$fileInput.addEventListener('change', this._onFileChange);
       this.$viewToggleBtn.addEventListener('click', () => this.toggleMask());
       this.$clearBtn.addEventListener('click', () => this.clear());
+      if (this.$capsuleBtn) {
+        this.$capsuleBtn.addEventListener('click', () => this.toggleCapsuleDrawer());
+      }
+      if (this.$capsuleCloseBtn) {
+        this.$capsuleCloseBtn.addEventListener('click', () => this.closeCapsuleDrawer());
+      }
 
       // Drag and drop
       this.$container.addEventListener('dragover', this._onDragOver);
@@ -457,6 +827,7 @@
       const isSecret = this.hasAttribute('secret-mode') || this.hasAttribute('stealth');
       this.isSecretMode = isSecret;
       if (isSecret) {
+        this.closeCapsuleDrawer();
         this.bindingMode = 'portable'; // Secret mode is strictly portable (§secret-mode)
         this.$textEntry.type = 'password';
       } else {
@@ -598,6 +969,224 @@
       this.$viewToggleBtn.classList.toggle('active', !this.masked);
       this.$viewToggleBtn.textContent = this.masked ? '👁️ Peek' : '🔒 Hide';
       this._renderTokens();
+    }
+
+    closeCapsuleDrawer() {
+      if (this.$capsuleDrawer) {
+        this.$capsuleDrawer.classList.remove('open');
+      }
+      if (this.$capsuleDrawerBody) {
+        this.$capsuleDrawerBody.innerHTML = '';
+      }
+    }
+
+    toggleCapsuleDrawer() {
+      if (this.isSecretMode) return; // Strict stealth invariant
+      if (!this.$capsuleDrawer) return;
+      if (this.$capsuleDrawer.classList.contains('open')) {
+        this.closeCapsuleDrawer();
+        return;
+      }
+      if (this.elements.length === 0) {
+        this.openEmptyCapsuleDrawer();
+      } else {
+        this.openExportCapsuleDrawer();
+      }
+    }
+
+    openEmptyCapsuleDrawer() {
+      if (this.isSecretMode || !this.$capsuleDrawerBody) return;
+      this.$capsuleDrawerTitle.textContent = '💾 .mosaic Keyfile';
+      this.$capsuleDrawerBody.innerHTML = `
+        <div class="capsule-hint">
+          No credential elements entered yet.<br>
+          You can load an existing encrypted <strong>.mosaic</strong> keyfile from your physical USB drive, or type/attach elements first to export.
+        </div>
+        <div class="capsule-actions">
+          <button type="button" class="capsule-btn-cancel" id="drawerCancelBtn">Cancel</button>
+          <button type="button" class="capsule-btn-primary" id="drawerLoadFileBtn">📂 Select .mosaic File</button>
+        </div>
+      `;
+      this.$capsuleDrawer.classList.add('open');
+      this.$capsuleDrawerBody.querySelector('#drawerLoadFileBtn').addEventListener('click', () => {
+        this.closeCapsuleDrawer();
+        this.$fileInput.click();
+      });
+      this.$capsuleDrawerBody.querySelector('#drawerCancelBtn').addEventListener('click', () => {
+        this.closeCapsuleDrawer();
+      });
+    }
+
+    openExportCapsuleDrawer() {
+      if (this.isSecretMode || !this.$capsuleDrawerBody) return;
+      this.$capsuleDrawerTitle.textContent = '💾 Export Encrypted .mosaic Keyfile';
+      this.$capsuleDrawerBody.innerHTML = `
+        <div class="capsule-hint">
+          Encrypt your full multi-modal credential (including secret keystrokes and exact binary files) into a portable <strong>.mosaic</strong> capsule for an offline USB drive.
+        </div>
+        <div class="capsule-field">
+          <label class="capsule-label" for="exportPass">Master Passphrase (min 8 characters)</label>
+          <input type="password" class="capsule-input" id="exportPass" placeholder="Enter a strong passphrase" autocomplete="new-password" />
+        </div>
+        <div class="capsule-field">
+          <label class="capsule-label" for="exportConfirm">Confirm Passphrase</label>
+          <input type="password" class="capsule-input" id="exportConfirm" placeholder="Re-enter passphrase" autocomplete="new-password" />
+        </div>
+        <div class="capsule-error" id="exportError"></div>
+        <div class="capsule-actions">
+          <button type="button" class="capsule-btn-cancel" id="exportCancelBtn">Cancel</button>
+          <button type="button" class="capsule-btn-primary" id="exportDownloadBtn">🔒 Download .mosaic Keyfile</button>
+        </div>
+      `;
+      this.$capsuleDrawer.classList.add('open');
+
+      const passInput = this.$capsuleDrawerBody.querySelector('#exportPass');
+      const confirmInput = this.$capsuleDrawerBody.querySelector('#exportConfirm');
+      const errorDiv = this.$capsuleDrawerBody.querySelector('#exportError');
+      const downloadBtn = this.$capsuleDrawerBody.querySelector('#exportDownloadBtn');
+      const cancelBtn = this.$capsuleDrawerBody.querySelector('#exportCancelBtn');
+
+      setTimeout(() => passInput.focus(), 50);
+
+      cancelBtn.addEventListener('click', () => this.closeCapsuleDrawer());
+
+      const handleExport = async () => {
+        errorDiv.style.display = 'none';
+        const pass = passInput.value;
+        const confirm = confirmInput.value;
+
+        if (pass !== confirm) {
+          errorDiv.textContent = 'Passphrases do not match.';
+          errorDiv.style.display = 'block';
+          return;
+        }
+
+        const validation = validateCapsulePassphrase(pass, this.capsulePassphraseValidator);
+        if (!validation.valid) {
+          errorDiv.textContent = validation.error;
+          errorDiv.style.display = 'block';
+          return;
+        }
+
+        downloadBtn.disabled = true;
+        downloadBtn.textContent = 'Encrypting (200k rounds)...';
+
+        try {
+          const canonicalBytes = this.encodeCanonical();
+          const capsuleBytes = await encryptCapsule(canonicalBytes, this.elements, pass);
+
+          const blob = new Blob([capsuleBytes], { type: 'application/octet-stream' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'credential.mosaic';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          this.closeCapsuleDrawer();
+        } catch (err) {
+          errorDiv.textContent = 'Encryption failed: ' + (err.message || err);
+          errorDiv.style.display = 'block';
+          downloadBtn.disabled = false;
+          downloadBtn.textContent = '🔒 Download .mosaic Keyfile';
+        }
+      };
+
+      downloadBtn.addEventListener('click', handleExport);
+      passInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmInput.focus();
+      });
+      confirmInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleExport();
+      });
+    }
+
+    promptUnlockCapsule(capsuleBytes, filename) {
+      if (this.isSecretMode) {
+        this.addBlob(capsuleBytes, filename || 'capsule.bin');
+        return;
+      }
+
+      this.$capsuleDrawerTitle.textContent = `🔓 Unlock ${filename || '.mosaic Keyfile'}`;
+      this.$capsuleDrawerBody.innerHTML = `
+        <div class="capsule-hint">
+          This is an encrypted <strong>.mosaic</strong> keyfile. Enter the master passphrase to decrypt and load your credential.
+        </div>
+        <div class="capsule-field">
+          <label class="capsule-label" for="unlockPass">Master Passphrase</label>
+          <input type="password" class="capsule-input" id="unlockPass" placeholder="Enter passphrase to decrypt" autocomplete="current-password" />
+        </div>
+        <div class="capsule-error" id="unlockError"></div>
+        <div class="capsule-actions">
+          <button type="button" class="capsule-btn-cancel" id="unlockCancelBtn">Cancel</button>
+          <button type="button" class="capsule-btn-primary" id="unlockSubmitBtn">🔓 Decrypt & Load</button>
+        </div>
+      `;
+      this.$capsuleDrawer.classList.add('open');
+
+      const passInput = this.$capsuleDrawerBody.querySelector('#unlockPass');
+      const errorDiv = this.$capsuleDrawerBody.querySelector('#unlockError');
+      const submitBtn = this.$capsuleDrawerBody.querySelector('#unlockSubmitBtn');
+      const cancelBtn = this.$capsuleDrawerBody.querySelector('#unlockCancelBtn');
+
+      setTimeout(() => passInput.focus(), 50);
+
+      cancelBtn.addEventListener('click', () => this.closeCapsuleDrawer());
+
+      const handleUnlock = async () => {
+        errorDiv.style.display = 'none';
+        const pass = passInput.value;
+        if (!pass) {
+          errorDiv.textContent = 'Passphrase cannot be empty.';
+          errorDiv.style.display = 'block';
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Decrypting (200k rounds)...';
+
+        try {
+          const envelope = await decryptCapsule(capsuleBytes, pass);
+          
+          let newElements = [];
+          if (envelope && Array.isArray(envelope.elements)) {
+            newElements = envelope.elements.map(el => {
+              if (el.type === 'BLOB') {
+                const binary = atob(el.base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                return { type: 'BLOB', name: el.name || 'file.bin', value: bytes };
+              }
+              return { ...el };
+            });
+          } else if (envelope && envelope.canonical) {
+            const binary = atob(envelope.canonical);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            newElements = parseCanonicalStream(bytes);
+          } else {
+            throw new Error('Unrecognized capsule format.');
+          }
+
+          this.elements = newElements;
+          this.$textEntry.value = '';
+          this._renderTokens();
+          this._updateFormValue();
+          this.closeCapsuleDrawer();
+        } catch (err) {
+          errorDiv.textContent = 'Decryption failed: Incorrect passphrase or corrupted keyfile.';
+          errorDiv.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = '🔓 Decrypt & Load';
+        }
+      };
+
+      submitBtn.addEventListener('click', handleUnlock);
+      passInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleUnlock();
+      });
     }
 
     // Serialization to MC v1 Binary Format (§6)
@@ -764,14 +1353,34 @@
       }
     }
 
+    _processFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const bytes = new Uint8Array(reader.result);
+        const isMosaicExt = file.name && file.name.toLowerCase().endsWith('.mosaic');
+        const hasCapsuleMagic = bytes.length >= 8 &&
+          bytes[0] === CAPSULE_MAGIC[0] &&
+          bytes[1] === CAPSULE_MAGIC[1] &&
+          bytes[2] === CAPSULE_MAGIC[2] &&
+          bytes[3] === CAPSULE_MAGIC[3] &&
+          bytes[4] === CAPSULE_MAGIC[4] &&
+          bytes[5] === CAPSULE_MAGIC[5] &&
+          bytes[6] === CAPSULE_MAGIC[6] &&
+          bytes[7] === CAPSULE_MAGIC[7];
+
+        if (!this.isSecretMode && (hasCapsuleMagic || isMosaicExt)) {
+          this.promptUnlockCapsule(bytes, file.name);
+        } else {
+          this.addBlob(bytes, file.name);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
     _onFileChange(e) {
       const files = Array.from(e.target.files);
       for (const file of files) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          this.addBlob(new Uint8Array(reader.result), file.name);
-        };
-        reader.readAsArrayBuffer(file);
+        this._processFile(file);
       }
       this.$fileInput.value = '';
     }
@@ -790,11 +1399,7 @@
       this.$container.classList.remove('drag-over');
       if (e.dataTransfer && e.dataTransfer.files) {
         for (const file of e.dataTransfer.files) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            this.addBlob(new Uint8Array(reader.result), file.name);
-          };
-          reader.readAsArrayBuffer(file);
+          this._processFile(file);
         }
       }
     }
@@ -901,14 +1506,30 @@
   }
 
   // Register Web Component
-  if (!customElements.get('mosaic-credential-input')) {
+  if (typeof customElements !== 'undefined' && !customElements.get('mosaic-credential-input')) {
     customElements.define('mosaic-credential-input', MosaicCredentialInput);
   }
 
   // Export to global if module or script
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MosaicCredentialInput };
-  } else {
+    module.exports = {
+      MosaicCredentialInput,
+      validateCapsulePassphrase,
+      encryptCapsule,
+      decryptCapsule,
+      parseCanonicalStream,
+      CAPSULE_MAGIC,
+      CAPSULE_ITERATIONS
+    };
+  } else if (typeof window !== 'undefined') {
     window.MosaicCredentialInput = MosaicCredentialInput;
+    window.MosaicCapsule = {
+      validateCapsulePassphrase,
+      encryptCapsule,
+      decryptCapsule,
+      parseCanonicalStream,
+      CAPSULE_MAGIC,
+      CAPSULE_ITERATIONS
+    };
   }
 })();

@@ -148,8 +148,11 @@ def api_register():
             },
         })
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError) as e:
         return jsonify({"success": False, "error": str(e)}), 400
+    except Exception:
+        app.logger.exception("Unexpected error during registration")
+        return jsonify({"success": False, "error": "Internal server error during registration."}), 500
 
 
 @app.route("/api/login", methods=["POST"])
@@ -212,8 +215,11 @@ def api_login():
                 "message": "Invalid credential. Access denied.",
             }), 401
 
-    except Exception as e:
+    except (ValueError, TypeError, KeyError) as e:
         return jsonify({"success": False, "error": str(e)}), 400
+    except Exception:
+        app.logger.exception("Unexpected error during login")
+        return jsonify({"success": False, "error": "Internal server error during login."}), 500
 
 
 @app.route("/api/database", methods=["GET"])
