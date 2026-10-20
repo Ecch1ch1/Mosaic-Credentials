@@ -8,7 +8,7 @@
 [![npm version](https://img.shields.io/npm/v/@mosaic-credentials/elements?color=cb3837&logo=npm)](https://www.npmjs.com/package/@mosaic-credentials/elements)
 [![crates.io](https://img.shields.io/crates/v/mosaic-credential-core?color=fc8c03&logo=rust)](https://crates.io/crates/mosaic-credential-core)
 [![PyPI version](https://img.shields.io/pypi/v/mosaic-credential?color=3775a9&logo=pypi)](https://pypi.org/project/mosaic-credential/)
-[![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success)](mosaic-elements/)
+[![Frontend Dependencies: 0](https://img.shields.io/badge/frontend%20deps-0-success)](mosaic-elements/)
 [![License](https://img.shields.io/badge/License-MPL_2.0-blue.svg)](LICENSE)
 
 ---
@@ -29,6 +29,7 @@ Traditional passwords limit users to a single string of ASCII characters, vulner
 * **Hidden Composition Multiplier**: Unlike traditional passwords where attackers know they are cracking an alphanumeric string, the stored Argon2id verifier reveals **zero information about the credential's structural composition**. The database contains no indicators of element counts, types, non-printable control keys, or binary BLOBs. An attacker cannot run conventional dictionary rules—they must guess the entire multi-dimensional composition.
 * **Tamper-Resistant Physical Capsule Envelope**: The `.mosaic` capsule format protects portable keys with authenticated AES-256-GCM encryption. Any bit alteration or unauthorized tampering immediately fails authentication verification before raw elements are exposed.
 * **Algorithmic Master PIN/Passphrase Validation**: Integrated defense against weak master secrets enforcing entropy thresholds, repeated character bans, linear sequence detection, and developer validation hooks.
+* **Minimal, Audited Cryptographic Dependencies (Zero Frontend Bloat)**: The frontend Web Component (`@mosaic-credentials/elements`) is **100% dependency-free** (pure vanilla JS + browser Web Crypto API, 0 npm runtime packages). For backend verification (Rust & Python), we strictly follow cryptographic engineering standards by depending only on audited, standard cryptographic primitives (`sha2`, `argon2`, and memory `zeroize`) rather than dangerous homemade implementations.
 * **Zero Pass-the-Hash**: The server requires the candidate secret sequence $S$ at authentication time to recompute $D$. Possession of the stored database verifier grants an attacker zero ability to authenticate.
 * **Constant Database Footprint**: Regardless of whether a secret is 8 characters or a 100 MB file, it streams into a fixed 32-byte domain-separated prehash and is hashed with memory-hard **Argon2id**. The database **only ever stores a compact ~220-byte PHC record**.
 
@@ -62,7 +63,7 @@ A Mosaic Credential wire stream $S$ is strictly framed in big-endian binary form
 
 | Package / Folder | Description |
 | :--- | :--- |
-| [`mosaic-elements/`](mosaic-elements/) | Zero-dependency framework-agnostic Web Component (`<mosaic-credential-input>`) with Visual, Secret, and `.mosaic` Keyfile Capsule modes. |
+| [`mosaic-elements/`](mosaic-elements/) | Zero-dependency frontend Web Component (`<mosaic-credential-input>`) with Visual, Secret, and `.mosaic` Keyfile Capsule modes. |
 | [`mosaic-core/`](mosaic-core/) | Core Rust crate: Types, streaming framing parser, binary encoder, validation policy, and prehash. |
 | [`mosaic-auth/`](mosaic-auth/) | Authentication crate: Argon2id enrollment, constant-time verification, and PHC string encoding. |
 | [`mosaic-cli/`](mosaic-cli/) | Command-line interface for enrollment, verification, inspection, and spec testing. |
@@ -121,7 +122,7 @@ record = enroll_credential(credential)
 assert verify_credential(credential, record) is True
 ```
 
-### 4. Drop-in Web Component (Zero Dependencies)
+### 4. Drop-in Frontend Component (0 Runtime Dependencies)
 Drop `<mosaic-credential-input>` directly into any HTML form or React/Vue/Svelte view:
 
 ```html
