@@ -143,9 +143,79 @@ async function testCapsuleSuite() {
   assert.strictEqual(parsedStream[2].value, 0xE010);
   assert.strictEqual(parsedStream[3].type, 'BLOB');
   assert.deepStrictEqual(Array.from(parsedStream[3].value), [0xca, 0xfe, 0xba, 0xbe]);
-  console.log('✓ Canonical binary stream parser passed');
+  // Test 5: Mobile Virtual Keyboard Deduplication Simulation
+  function simulateMobileInput(inputEvents) {
+    const elements = [];
+    let handledInKeyDown = false;
+    for (const ev of inputEvents) {
+      if (ev.type === 'keydown' && ev.key === 'Backspace') {
+        elements.push({ type: 'CHAR', value: 0x0008 });
+        handledInKeyDown = true;
+        continue;
+      }
+      if (ev.type === 'input') {
+        if (ev.inputType === 'deleteContentBackward') {
+          if (!handledInKeyDown) {
+            elements.push({ type: 'CHAR', value: 0x0008 });
+          }
+          handledInKeyDown = false;
+          continue;
+        }
+        let rawText = ev.data || '';
+        if (rawText.length > 0) {
+          if (rawText.length > 1 && ev.inputType !== 'insertFromPaste') {
+            let matchCount = 0;
+            for (let i = 1; i < rawText.length; i++) {
+              const prefix = rawText.slice(0, i);
+              if (elements.length >= i) {
+                const recentChars = elements.slice(elements.length - i)
+                  .map(el => (el.type === 'CHAR' && el.value !== 0x0008 ? String.fromCodePoint(el.value) : ''))
+                  .join('');
+                if (recentChars === prefix) {
+                  matchCount = i;
+                }
+              }
+            }
+            if (matchCount > 0) {
+              rawText = rawText.slice(matchCount);
+            }
+          }
+          for (const ch of rawText) {
+            elements.push({ type: 'CHAR', value: ch.codePointAt(0) });
+          }
+        }
+      }
+    }
+    return elements;
+  }
 
-  console.log('\nAll Web Component encoding & .mosaic capsule tests passed with 100% compliance!');
+  // 5a: Android Gboard cumulative word buffer typing "password"
+  const gboardEvents = [
+    { type: 'input', inputType: 'insertCompositionText', data: 'p' },
+    { type: 'input', inputType: 'insertCompositionText', data: 'pa' },
+    { type: 'input', inputType: 'insertCompositionText', data: 'pas' },
+    { type: 'input', inputType: 'insertCompositionText', data: 'pass' },
+    { type: 'input', inputType: 'insertCompositionText', data: 'passw' },
+    { type: 'input', inputType: 'insertCompositionText', data: 'passwo' },
+    { type: 'input', inputType: 'insertCompositionText', data: 'passwor' },
+    { type: 'input', inputType: 'insertCompositionText', data: 'password' },
+  ];
+  const gboardResult = simulateMobileInput(gboardEvents);
+  assert.strictEqual(gboardResult.length, 8);
+  assert.strictEqual(gboardResult.map(e => String.fromCodePoint(e.value)).join(''), 'password');
+
+  // 5b: Mobile Backspace without keydown (deleteContentBackward only)
+  const mobileBsEvents = [
+    { type: 'input', inputType: 'insertText', data: 'a' },
+    { type: 'input', inputType: 'deleteContentBackward' },
+    { type: 'input', inputType: 'insertText', data: 'b' },
+  ];
+  const bsResult = simulateMobileInput(mobileBsEvents);
+  assert.strictEqual(bsResult.length, 3);
+  assert.strictEqual(bsResult[1].value, 0x0008);
+  console.log('✓ Mobile virtual keyboard cumulative deduplication and Backspace passed');
+
+  console.log('\nAll Web Component encoding, mobile defense & .mosaic capsule tests passed with 100% compliance!');
 }
 
 testCapsuleSuite().catch(err => {

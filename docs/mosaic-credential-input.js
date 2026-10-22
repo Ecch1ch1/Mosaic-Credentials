@@ -656,7 +656,7 @@
     <div class="mosaic-container" id="container" part="container">
       <div class="input-row" id="inputRow" part="input-row">
         <div class="tokens-list" id="tokensList" part="tokens-list"></div>
-        <input type="text" class="text-entry" id="textEntry" autocomplete="off" spellcheck="false" part="input" />
+        <input type="password" class="text-entry" id="textEntry" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" part="input" />
         <button type="button" class="quick-clear-btn" id="quickClearBtn" part="clear-btn" title="Clear all elements (Reset)" aria-label="Clear all elements">✕</button>
       </div>
 
@@ -831,7 +831,7 @@
         this.bindingMode = 'portable'; // Secret mode is strictly portable (§secret-mode)
         this.$textEntry.type = 'password';
       } else {
-        this.$textEntry.type = 'text';
+        this.$textEntry.type = 'password';
       }
       if (this.$fileNote) {
         this.$fileNote.style.display = isSecret ? 'none' : 'flex';
@@ -1296,6 +1296,7 @@
           e.preventDefault();
           // Secret Backspace Mode: Insert CHAR(0x0008)
           this.addBackspace();
+          this._bsHandledInKeyDown = true;
         }
       } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
@@ -1315,7 +1316,26 @@
     _onInput(e) {
       if (this.isSecretMode) {
         if (e.inputType === 'insertText' && e.data) {
-          for (const ch of e.data) {
+          let text = e.data;
+          // Protect against mobile cumulative composition in secret mode
+          if (text.length > 1 && e.inputType !== 'insertFromPaste') {
+            let matchCount = 0;
+            for (let i = 1; i < text.length; i++) {
+              const prefix = text.slice(0, i);
+              if (this.elements.length >= i) {
+                const recentChars = this.elements.slice(this.elements.length - i)
+                  .map(el => (el.type === 'CHAR' && el.value !== 0x0008 ? String.fromCodePoint(el.value) : ''))
+                  .join('');
+                if (recentChars === prefix) {
+                  matchCount = i;
+                }
+              }
+            }
+            if (matchCount > 0) {
+              text = text.slice(matchCount);
+            }
+          }
+          for (const ch of text) {
             this.elements.push({ type: 'CHAR', value: ch.codePointAt(0) });
           }
           this._updateFormValue();
@@ -1326,16 +1346,53 @@
           }
           this._bsHandledInKeyDown = false;
         }
+        this._updateClearBtnVisibility();
         return;
       }
 
-      if (e.inputType === 'insertText' && e.data) {
-        for (const ch of e.data) {
-          this.addChar(ch);
+      // Visual / Rich Token Mode:
+      // Handle mobile virtual keyboard Backspace which fires input (deleteContentBackward)
+      if (e.inputType === 'deleteContentBackward') {
+        if (!this._bsHandledInKeyDown) {
+          this.addBackspace();
         }
+        this._bsHandledInKeyDown = false;
         this.$textEntry.value = '';
-      } else if (this.$textEntry.value.length > 0) {
-        for (const ch of this.$textEntry.value) {
+        this._updateClearBtnVisibility();
+        return;
+      }
+
+      let rawText = '';
+      if (e.data) {
+        rawText = e.data;
+      } else if (this.$textEntry.value && this.$textEntry.value.length > 0) {
+        rawText = this.$textEntry.value;
+      }
+
+      if (rawText.length > 0) {
+        // Mobile Virtual Keyboard Deduplication Defense:
+        // Some mobile keyboards (e.g. Android Gboard during predictive/composition sessions)
+        // send cumulative buffers (e.g. "p", then "pa", then "pas").
+        // Since we commit tokens immediately, strip any prefix matching recent CHAR elements.
+        if (rawText.length > 1 && e.inputType !== 'insertFromPaste') {
+          let matchCount = 0;
+          for (let i = 1; i < rawText.length; i++) {
+            const prefix = rawText.slice(0, i);
+            if (this.elements.length >= i) {
+              const recentChars = this.elements.slice(this.elements.length - i)
+                .map(el => (el.type === 'CHAR' && el.value !== 0x0008 ? String.fromCodePoint(el.value) : ''))
+                .join('');
+              if (recentChars === prefix) {
+                matchCount = i;
+              }
+            }
+          }
+          if (matchCount > 0) {
+            rawText = rawText.slice(matchCount);
+          }
+        }
+
+        for (const ch of rawText) {
           this.addChar(ch);
         }
         this.$textEntry.value = '';
